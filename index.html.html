@@ -1,0 +1,928 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NotatkiAI — wersja prywatna</title>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#ffffff; --panel:#ffffff; --ink:#1d2030; --muted:#6b7280;
+  --accent:#6d5ae6; --accent-2:#8b78ff; --accent-soft:#efeafe; --accent-line:#e3dcfb;
+  --hl:#ffd24a; --hl-soft:#fff3c4; --hl-weak:rgba(255,210,74,.45);
+  --border:#e8e8f0; --ok:#15924f; --ok-soft:#e7f6ee; --bad:#d83a52; --bad-soft:#fdeaee;
+  --shadow:0 1px 2px rgba(25,25,60,.05), 0 6px 24px rgba(25,25,60,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;font-size:16px}
+button{font-family:inherit;cursor:pointer}
+.app{display:grid;grid-template-columns:268px 1fr;min-height:100vh}
+.side{border-right:1px solid var(--border);background:var(--panel);padding:18px 14px;display:flex;flex-direction:column;gap:14px}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 4px}
+.logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:#fff;font-weight:800;font-size:17px;box-shadow:0 4px 12px rgba(109,90,230,.35)}
+.brand b{font-size:16px;letter-spacing:.2px}
+.brand small{display:block;color:var(--muted);font-size:11.5px;font-weight:500}
+.newbtn{display:flex;gap:8px;align-items:center;justify-content:center;width:100%;border:none;background:var(--accent);color:#fff;font-weight:600;padding:11px;border-radius:11px;font-size:14px;box-shadow:0 4px 12px rgba(109,90,230,.28);transition:.15s}
+.newbtn:hover{background:#5d4ae0}
+.lib-label{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;padding:0 6px;margin-top:2px}
+.lib{display:flex;flex-direction:column;gap:6px;overflow:auto}
+.item{border:1px solid var(--border);border-radius:11px;padding:10px 11px;background:var(--panel);transition:.12s;position:relative}
+.item:hover{border-color:var(--accent-line);background:#fbfaff}
+.item.active{border-color:var(--accent);background:var(--accent-soft)}
+.item h4{margin:0 0 2px;font-size:13.5px;font-weight:600;padding-right:18px;line-height:1.35}
+.item .meta{font-size:11px;color:var(--muted)}
+.item .del{position:absolute;top:8px;right:8px;border:none;background:transparent;color:#b9b9c6;font-size:15px;line-height:1;padding:2px;border-radius:6px}
+.item .del:hover{color:var(--bad);background:var(--bad-soft)}
+.side-foot{margin-top:auto;font-size:11px;color:var(--muted);padding:0 6px;border-top:1px solid var(--border);padding-top:10px}
+.main{padding:26px 30px;overflow:auto;max-height:100vh;background:radial-gradient(900px 520px at 8% -8%,rgba(141,120,255,.08),transparent 60%),radial-gradient(760px 460px at 108% 0%,rgba(96,165,250,.07),transparent 55%),radial-gradient(720px 620px at 55% 122%,rgba(255,210,74,.07),transparent 60%)}
+.wrap{max-width:800px;margin:0 auto}
+.hidden{display:none!important}
+.drop{position:relative;border:1.5px dashed rgba(141,120,255,.4);border-radius:22px;padding:40px 26px;text-align:center;transition:.18s;background:linear-gradient(135deg,rgba(255,255,255,.62),rgba(255,255,255,.4));-webkit-backdrop-filter:blur(16px) saturate(170%);backdrop-filter:blur(16px) saturate(170%);box-shadow:0 14px 44px rgba(40,40,90,.09),inset 0 1px 0 rgba(255,255,255,.85)}
+.drop.drag{border-color:var(--accent);background:linear-gradient(135deg,rgba(239,234,254,.85),rgba(255,255,255,.55));box-shadow:0 16px 50px rgba(109,90,230,.18),inset 0 1px 0 rgba(255,255,255,.9)}
+.icbadge{width:88px;height:88px;margin:0 auto 4px;border-radius:26px;display:grid;place-items:center;font-size:42px;position:relative;overflow:hidden;background:linear-gradient(140deg,rgba(255,255,255,.88),rgba(255,255,255,.46));-webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%);border:1px solid rgba(255,255,255,.7);box-shadow:0 14px 36px rgba(109,90,230,.20),inset 0 1px 0 rgba(255,255,255,.95),inset 0 -10px 20px rgba(141,120,255,.12)}
+.icbadge::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(150deg,rgba(255,255,255,.75),transparent 46%)}
+.drop h3{margin:10px 0 4px;font-size:17px}
+.drop p{margin:0;color:var(--muted);font-size:13.5px}
+.filebtn{display:inline-block;margin-top:16px;background:linear-gradient(135deg,var(--accent-2),var(--accent));color:#fff;border:none;padding:11px 20px;border-radius:12px;font-weight:600;font-size:14px;box-shadow:0 10px 24px rgba(109,90,230,.30),inset 0 1px 0 rgba(255,255,255,.4)}
+.filebtn:hover{filter:brightness(1.05)}
+.or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:12px;margin:20px 0;text-transform:uppercase;letter-spacing:1px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--border)}
+textarea{width:100%;min-height:150px;border:1px solid rgba(255,255,255,.7);border-radius:14px;padding:14px;font:inherit;font-size:14px;resize:vertical;background:linear-gradient(135deg,rgba(255,255,255,.7),rgba(255,255,255,.5));-webkit-backdrop-filter:blur(12px) saturate(160%);backdrop-filter:blur(12px) saturate(160%);color:var(--ink);box-shadow:0 8px 26px rgba(40,40,90,.06),inset 0 1px 0 rgba(255,255,255,.8)}
+textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.titlefield{width:100%;border:1px solid rgba(255,255,255,.7);border-radius:12px;padding:11px 13px;font:inherit;font-size:14px;margin-bottom:10px;background:linear-gradient(135deg,rgba(255,255,255,.7),rgba(255,255,255,.5));-webkit-backdrop-filter:blur(12px) saturate(160%);backdrop-filter:blur(12px) saturate(160%);color:var(--ink);box-shadow:0 8px 26px rgba(40,40,90,.06),inset 0 1px 0 rgba(255,255,255,.8)}
+.titlefield:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.row{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
+.btn{background:linear-gradient(135deg,var(--accent-2),var(--accent));color:#fff;border:none;padding:11px 20px;border-radius:12px;font-weight:600;font-size:14px;box-shadow:0 10px 24px rgba(109,90,230,.28),inset 0 1px 0 rgba(255,255,255,.35);transition:.15s}
+.btn:hover{filter:brightness(1.06)}
+.btn[disabled]{opacity:.6;cursor:not-allowed;box-shadow:none}
+.btn.ghost{background:var(--panel);color:var(--accent);border:1px solid var(--accent-line);box-shadow:none}
+.btn.ghost:hover{background:var(--accent-soft)}
+.filechip{display:inline-flex;align-items:center;gap:8px;background:var(--accent-soft);border:1px solid var(--accent-line);color:var(--accent);padding:7px 12px;border-radius:999px;font-size:13px;font-weight:600}
+.filechip button{border:none;background:transparent;color:var(--accent);font-size:14px;cursor:pointer;line-height:1}
+.tabs{display:inline-flex;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:4px;gap:4px;margin-bottom:20px}
+.tab{border:none;background:transparent;padding:8px 18px;border-radius:9px;font-weight:600;font-size:13.5px;color:var(--muted)}
+.tab.active{background:var(--accent);color:#fff}
+.note h1{font-size:26px;margin:0 0 6px;line-height:1.22}
+.readtime{color:var(--muted);font-size:12.5px;margin-bottom:16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dot{width:4px;height:4px;border-radius:50%;background:#c7c7d3}
+.doctag{display:inline-flex;align-items:center;gap:5px;background:#eef0f6;color:#5a6075;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600}
+.intro{font-style:italic;color:#4b5060;background:#fbfbfe;border-left:3px solid var(--accent-line);border-radius:0 10px 10px 0;padding:13px 16px;margin:6px 0 18px;line-height:1.6}
+.notetools{display:flex;gap:8px;margin:0 0 18px;flex-wrap:wrap}
+.toolbtn{border:1px solid var(--accent-line);background:var(--panel);color:var(--accent);font-weight:600;font-size:13px;padding:7px 13px;border-radius:10px}
+.toolbtn:hover{background:var(--accent-soft)}
+.toolbtn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.gh{font-size:20px;font-weight:700;margin:38px 0 16px;padding-top:26px;border-top:1px solid var(--border);letter-spacing:-.2px}
+.gh:first-of-type{border-top:none;padding-top:6px}
+.ghhl{background:linear-gradient(transparent 56%, var(--hl) 56%);padding:0 5px 1px;border-radius:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.sec{position:relative;margin:0 0 14px;border-radius:18px;overflow:hidden;background:linear-gradient(135deg,rgba(255,255,255,.72),rgba(255,255,255,.46));-webkit-backdrop-filter:blur(16px) saturate(180%);backdrop-filter:blur(16px) saturate(180%);border:1px solid rgba(255,255,255,.65);box-shadow:0 10px 34px rgba(40,40,90,.10),inset 0 1px 0 rgba(255,255,255,.85)}
+.sec::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(140deg,rgba(255,255,255,.55),transparent 42%)}
+.sec>*{position:relative}
+.sec:hover{box-shadow:0 14px 42px rgba(40,40,90,.14),inset 0 1px 0 rgba(255,255,255,.9)}
+.sechead{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;border:none;background:transparent;padding:14px 17px;font:inherit}
+.sechead:hover{background:rgba(255,255,255,.35)}
+.chev{color:var(--accent);font-size:13px;transition:transform .15s;margin-top:4px;flex:none}
+.sec:not(.collapsed) .chev{transform:rotate(90deg)}
+.qhead{font-weight:600;font-size:16.5px;color:#33384a;line-height:1.4}
+.secbody{padding:2px 16px 15px 40px}
+.sec.collapsed .secbody{display:none}
+.topiclbl{font-size:12px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px}
+.mainidea{margin:6px 0 12px;line-height:1.6}
+.mainidea b{color:var(--ink);font-weight:700;background:linear-gradient(transparent 60%, var(--hl-weak) 60%);padding:0 3px 1px;border-radius:1px}
+.sublabel{display:inline-block;font-size:14px;font-weight:700;color:var(--ink);margin:14px 0 7px;background:linear-gradient(transparent 60%, var(--hl-weak) 60%);padding:0 3px 1px;border-radius:1px}
+.lead{margin:6px 0 12px;line-height:1.62}
+.exbox{display:flex;flex-direction:column;gap:8px;margin:12px 0 4px}
+.ex{background:#fdf9ec;border-left:3px solid var(--hl);border-radius:0 10px 10px 0;padding:9px 13px;font-size:14px;line-height:1.55}
+.exlbl{font-weight:700}
+.libtabs{display:flex;background:#f1f1f7;border-radius:11px;padding:3px;gap:3px}
+.libtab{flex:1;border:none;background:transparent;padding:7px 4px;border-radius:8px;font-weight:600;font-size:12.5px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:6px}
+.libtab.active{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(25,25,60,.10)}
+.libcnt{background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:0 7px;font-size:11px;font-weight:700;line-height:18px;min-width:18px;text-align:center}
+.libtab.active .libcnt{background:var(--accent);color:#fff}
+.pts{margin:0 0 4px;padding-left:20px}
+.pts li{margin:6px 0;line-height:1.55}
+.tblwrap{overflow:auto;margin:13px 0}
+.tbl{border-collapse:collapse;width:100%;font-size:13.5px}
+.tbl th,.tbl td{border:1px solid var(--border);padding:8px 11px;text-align:left;vertical-align:top}
+.tbl th{background:var(--accent-soft);color:#42386f;font-weight:700}
+.tbl tr:nth-child(even) td{background:#fafaff}
+.h2sec{font-size:13px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:700;margin:30px 0 12px}
+.sq{counter-reset:q;list-style:none;padding:0;margin:0}
+.sq li{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:13px 15px 13px 48px;margin-bottom:9px;position:relative}
+.sq li::before{counter-increment:q;content:counter(q);position:absolute;left:14px;top:12px;width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:12px;display:grid;place-items:center}
+.q{background:linear-gradient(135deg,rgba(255,255,255,.72),rgba(255,255,255,.5));-webkit-backdrop-filter:blur(14px) saturate(170%);backdrop-filter:blur(14px) saturate(170%);border:1px solid rgba(255,255,255,.6);border-radius:16px;padding:16px 18px;margin-bottom:14px;box-shadow:0 8px 28px rgba(40,40,90,.09),inset 0 1px 0 rgba(255,255,255,.8)}
+.q .qn{font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.5px}
+.q .qt{font-weight:600;margin:4px 0 12px;font-size:15.5px}
+.opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border);border-radius:11px;padding:11px 13px;margin-bottom:8px;cursor:pointer;transition:.12s;background:var(--panel)}
+.opt:hover{border-color:var(--accent-line);background:#fbfaff}
+.opt.sel{border-color:var(--accent);background:var(--accent-soft)}
+.opt .mk{width:22px;height:22px;border-radius:50%;border:2px solid #cfcfdb;flex:none;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff;margin-top:1px}
+.opt.sel .mk{border-color:var(--accent);background:var(--accent)}
+.opt.correct{border-color:var(--ok);background:var(--ok-soft)}
+.opt.correct .mk{border-color:var(--ok);background:var(--ok)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.opt.wrong .mk{border-color:var(--bad);background:var(--bad)}
+.opt .ot{flex:1}
+.exp{margin-top:8px;font-size:13px;color:var(--muted);background:#f7f7fb;border-radius:10px;padding:9px 12px;border-left:3px solid var(--accent-line)}
+.scorebar{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 26%);padding:16px 0 4px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.score{font-weight:700;font-size:16px}
+.score .pill{display:inline-block;background:var(--accent);color:#fff;border-radius:999px;padding:2px 12px;margin-left:4px}
+/* Quiz premium */
+.qbadge{width:74px;height:74px;margin:0 auto 8px;border-radius:24px;display:grid;place-items:center;font-size:36px;position:relative;overflow:hidden;background:linear-gradient(140deg,rgba(255,255,255,.88),rgba(255,255,255,.46));-webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%);border:1px solid rgba(255,255,255,.7);box-shadow:0 14px 36px rgba(109,90,230,.20),inset 0 1px 0 rgba(255,255,255,.95),inset 0 -10px 20px rgba(141,120,255,.12)}
+.qbadge::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(150deg,rgba(255,255,255,.75),transparent 46%)}
+.qbadge.big{width:92px;height:92px;font-size:46px;border-radius:28px}
+.qsetup{text-align:center;padding:6px 0}
+.qtitle{font-size:24px;margin:6px 0 2px}
+.qsub{color:var(--muted);margin:0 0 8px}
+.qcard{text-align:left;max-width:470px;margin:16px auto;padding:4px 20px;border-radius:18px;background:linear-gradient(135deg,rgba(255,255,255,.72),rgba(255,255,255,.5));-webkit-backdrop-filter:blur(16px) saturate(170%);backdrop-filter:blur(16px) saturate(170%);border:1px solid rgba(255,255,255,.6);box-shadow:0 12px 36px rgba(40,40,90,.09),inset 0 1px 0 rgba(255,255,255,.85)}
+.qopt{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 0}
+.qopt+.qopt{border-top:1px solid var(--border)}
+.qoptlbl{font-weight:700}
+.qopthint{font-size:12px;color:var(--muted);margin-top:2px;max-width:260px}
+.sliderwrap{display:flex;align-items:center;gap:12px}
+input[type=range]{-webkit-appearance:none;appearance:none;height:8px;border-radius:6px;background:var(--accent-soft);outline:none;width:150px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--accent-2),var(--accent));border:2px solid #fff;box-shadow:0 4px 12px rgba(109,90,230,.4);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 4px 12px rgba(109,90,230,.4);cursor:pointer}
+.sval{font-weight:800;color:var(--accent);font-size:18px;min-width:26px;text-align:center}
+.switch{position:relative;display:inline-block;width:50px;height:28px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.switch .track{position:absolute;cursor:pointer;inset:0;background:#d8d8e4;border-radius:999px;transition:.2s;box-shadow:inset 0 1px 3px rgba(0,0,0,.12)}
+.switch .track::before{content:"";position:absolute;height:22px;width:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.switch input:checked + .track{background:linear-gradient(135deg,var(--accent-2),var(--accent))}
+.switch input:checked + .track::before{transform:translateX(22px)}
+.qbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 10px;flex-wrap:wrap}
+.qprog{font-size:13.5px;color:var(--muted)} .qprog b{color:var(--ink)}
+.roguetag{color:#c0344b;font-weight:700}
+.qcounters{display:flex;gap:8px;align-items:center}
+.qcorrect{font-weight:700;font-size:13px;background:var(--ok-soft);color:var(--ok);padding:4px 11px;border-radius:999px}
+.qstreak{font-size:14px}
+.qlife{font-size:13px;background:#ffe9ec;color:#c0344b;padding:4px 11px;border-radius:999px;font-weight:700}
+.qprogbar{height:6px;background:rgba(141,120,255,.16);border-radius:6px;overflow:hidden;margin:0 0 16px}
+.qprogfill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .25s}
+.qresult{text-align:center;padding:8px 0}
+.qstats{display:flex;gap:14px;justify-content:center;margin:18px 0;flex-wrap:wrap}
+.qstat{border-radius:14px;padding:14px 20px;min-width:96px;background:linear-gradient(135deg,rgba(255,255,255,.72),rgba(255,255,255,.5));-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.6);box-shadow:0 8px 24px rgba(40,40,90,.08)}
+.qstat b{display:block;font-size:24px;color:var(--accent)} .qstat span{font-size:11.5px;color:var(--muted)}
+.gameover{background:#ffe9ec;border:1px solid #f4c2cb;color:#a01b30;border-radius:12px;padding:11px 15px;font-weight:600;margin-bottom:12px}
+.muted{color:var(--muted)} .small{font-size:12.5px}
+.center{display:grid;place-items:center;min-height:60vh;text-align:center;color:var(--muted)}
+.spinner{width:40px;height:40px;border:4px solid var(--accent-soft);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.steps{font-size:13.5px;color:var(--muted)}
+.banner{border-radius:12px;padding:12px 15px;font-size:13.5px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start}
+.banner.warn{background:#fff7e6;border:1px solid #ffe0a3;color:#8a5a00}
+.banner.err{background:var(--bad-soft);border:1px solid #f4c2cb;color:#a01b30}
+.empty-ic{font-size:46px;margin-bottom:8px}
+.figs{display:flex;flex-direction:column;gap:10px;margin:12px 0}
+.fig{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;max-width:520px}
+.fig img{display:block;width:100%;max-height:440px;object-fit:contain;background:#fbfbfe;cursor:zoom-in}
+.figsvg{padding:16px;background:#fff;display:flex;justify-content:center}
+.figsvg svg{width:100%;max-width:430px;height:auto}
+.fcap{font-size:12px;color:var(--muted);padding:8px 12px;border-top:1px solid var(--border)}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.gcard{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff}
+.gcard img{display:block;width:100%;height:155px;object-fit:contain;background:#fbfbfe;cursor:zoom-in}
+.gcard .gcap{font-size:11.5px;color:var(--muted);padding:7px 10px;border-top:1px solid var(--border)}
+.lightbox{position:fixed;inset:0;background:rgba(15,15,35,.86);z-index:50;display:flex;flex-direction:column}
+.lbctrl{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:14px 18px;flex:none}
+.lbctrl button{width:40px;height:40px;border-radius:11px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12);color:#fff;font-size:19px;font-weight:700;line-height:1}
+.lbctrl button:hover{background:rgba(255,255,255,.24)}
+.lbpct{color:#fff;font-size:13px;font-weight:600;min-width:50px;text-align:center}
+.lbhint{color:rgba(255,255,255,.55);font-size:12px;margin-right:auto;padding-left:6px}
+.lbview{flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.lbview img{max-width:92%;max-height:96%;border-radius:10px;box-shadow:0 10px 50px rgba(0,0,0,.5);background:#fff;transition:transform .07s linear;cursor:grab;user-select:none;touch-action:none}
+.note.readable{font-size:18px}
+.note.readable .qhead{font-size:18px}
+.note.readable .pts li{margin:10px 0;line-height:1.7}
+.note.readable .mainidea{line-height:1.75}
+.topbar{display:none;align-items:center;justify-content:space-between;gap:10px;margin:0 0 16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.tb-brand{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700}
+.logo.sm{width:28px;height:28px;font-size:14px;border-radius:8px;box-shadow:0 3px 8px rgba(109,90,230,.3)}
+.tb-actions{display:flex;gap:8px;flex-wrap:wrap}
+.tb-btn{border:1px solid var(--accent-line);background:var(--panel);color:var(--accent);font-weight:600;font-size:13px;padding:7px 12px;border-radius:10px;display:inline-flex;align-items:center;gap:6px}
+.tb-btn.primary{background:linear-gradient(135deg,var(--accent-2),var(--accent));color:#fff;border:none}
+.cntpill{background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700}
+.tb-btn.primary .cntpill{background:rgba(255,255,255,.25);color:#fff}
+.drawer{position:fixed;inset:0;background:rgba(15,15,35,.4);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);z-index:60;display:none}
+.drawer.open{display:block}
+.drawer-panel{position:absolute;left:0;top:0;bottom:0;width:300px;max-width:86vw;background:var(--panel);box-shadow:0 0 50px rgba(0,0,0,.25);padding:16px 14px;display:flex;flex-direction:column;gap:12px;overflow:auto;animation:slidein .18s ease}
+@keyframes slidein{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+.drawer-head{display:flex;align-items:center;justify-content:space-between}
+.drawer-head b{font-size:16px}
+.drawer-x{border:none;background:transparent;font-size:22px;color:var(--muted);cursor:pointer;line-height:1}
+@media(max-width:720px){.app{grid-template-columns:1fr}.side{display:none}.main{padding:18px}.topbar{display:flex}}
+.modal{position:fixed;inset:0;background:rgba(15,15,35,.45);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px}
+.modal-card{background:#fff;border-radius:18px;padding:22px 24px;max-width:500px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-card h3{margin:0 0 8px}
+.cfghint{font-size:12.5px;color:var(--muted);margin:0 0 10px;line-height:1.5}
+.cfglbl{display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:12px 0 5px;text-transform:uppercase;letter-spacing:.5px}
+.cfgrow{display:flex;gap:8px;align-items:center}
+.modelsel{border:1px solid var(--border);border-radius:10px;padding:9px 10px;font:inherit;font-size:13px;background:#fff;color:var(--ink);max-width:100%}
+.newbtn.alt{background:#fff;color:var(--accent);border:1px solid var(--accent-line);box-shadow:none}
+.newbtn.alt:hover{background:var(--accent-soft)}
+@media print{
+  .side,.topbar,.tabs,.notetools,.drawer,.del,.row,.banner,.modal{display:none!important}
+  .app{display:block}
+  .main{max-height:none;overflow:visible;background:#fff;padding:0}
+  .wrap{max-width:none}
+  .sec{box-shadow:none;border:1px solid #ddd;break-inside:avoid;-webkit-backdrop-filter:none;backdrop-filter:none;background:#fff}
+  .sec.collapsed .secbody{display:block!important}
+  .chev{display:none}
+  .gh{break-after:avoid}
+  .fig{break-inside:avoid}
+}
+</style>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div><b>NotatkiAI</b><small>wykłady → notatki + quiz</small></div>
+    </div>
+    <button class="newbtn" id="newBtn">＋ Nowa notatka</button>
+    <button class="newbtn alt" id="importBtn">⬇ Importuj notatkę</button>
+    <button class="newbtn alt" id="cfgBtn">⚙ Ustawienia AI</button>
+    <div class="lib-label">Biblioteka</div>
+    <div class="libtabs" id="libTabsSide"></div>
+    <div class="lib" id="lib"></div>
+    <div class="side-foot">Wersja prywatna. Notatki zapisują się w tej przeglądarce — używaj <b>Eksportu/Importu</b>, aby przenosić je między urządzeniami (np. PC → telefon). Generowanie przez API Anthropic — klucz i model ustawisz w <b>⚙ Ustawienia AI</b>.</div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div class="tb-brand"><div class="logo sm">N</div><b>NotatkiAI</b></div>
+      <div class="tb-actions">
+        <button class="tb-btn" id="mnBtn">☰ Moje notatki <span class="cntpill" id="mnCount">0</span></button>
+        <button class="tb-btn" id="cfgBtnTop" title="Ustawienia AI">⚙</button>
+        <button class="tb-btn primary" id="mnNew">＋ Nowa</button>
+      </div>
+    </div>
+    <div class="wrap" id="content"></div>
+  </main>
+</div>
+
+<div class="drawer" id="drawer">
+  <div class="drawer-panel">
+    <div class="drawer-head"><b>Moje notatki</b><button class="drawer-x" id="drawerX">×</button></div>
+    <button class="newbtn" id="drawerNew">＋ Nowa notatka</button>
+    <div class="libtabs" id="libTabsDrawer"></div>
+    <div class="lib" id="drawerLib"></div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept=".pptx,.pdf,.txt,.md" class="hidden">
+<input type="file" id="importInput" accept=".json,application/json" class="hidden">
+
+<div class="modal hidden" id="cfgModal">
+  <div class="modal-card">
+    <h3>⚙ Ustawienia AI</h3>
+    <p class="cfghint">Klucz API wygenerujesz na <b>platform.claude.com</b> → Settings → API keys. Klucz zapisuje się <b>wyłącznie w tej przeglądarce</b> — nie udostępniaj nikomu pliku ani urządzenia z wpisanym kluczem.</p>
+    <label class="cfglbl">Klucz API</label>
+    <div class="cfgrow"><input type="password" id="cfgKey" class="titlefield" placeholder="sk-ant-..." style="margin:0"><button class="toolbtn" id="cfgEye" title="Pokaż/ukryj">👁</button></div>
+    <label class="cfglbl">Model (notatki i quizy)</label>
+    <select id="cfgModel" class="modelsel" style="width:100%"></select>
+    <div class="row"><button class="btn" id="cfgSave">Zapisz</button><button class="btn ghost" id="cfgTest">Przetestuj połączenie</button><button class="btn ghost" id="cfgClose">Zamknij</button></div>
+    <div id="cfgStatus" style="font-size:13px;margin-top:10px"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<script>
+"use strict";
+const LS_KEY="notatkiai.notes.v4";
+const state={notes:[],currentId:null,view:"input",libTab:"notes",draft:{title:"",text:"",fileName:"",images:[]},quizCfg:{count:8,rogue:false},qz:null};
+
+const DB_NAME="notatkiai_db", STORE="notes";
+let _idbOk=(typeof indexedDB!=="undefined" && !!indexedDB);
+function idbOpen(){ return new Promise((res,rej)=>{ const r=indexedDB.open(DB_NAME,1); r.onupgradeneeded=()=>{ const db=r.result; if(!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE,{keyPath:"id"}); }; r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function idbAll(){ return idbOpen().then(db=>new Promise((res,rej)=>{ const rq=db.transaction(STORE,"readonly").objectStore(STORE).getAll(); rq.onsuccess=()=>res(rq.result||[]); rq.onerror=()=>rej(rq.error); })); }
+function idbPut(n){ return idbOpen().then(db=>new Promise((res,rej)=>{ const tx=db.transaction(STORE,"readwrite"); tx.objectStore(STORE).put(n); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); })); }
+function idbDel(id){ return idbOpen().then(db=>new Promise((res,rej)=>{ const tx=db.transaction(STORE,"readwrite"); tx.objectStore(STORE).delete(id); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); })); }
+async function loadNotes(){
+  if(_idbOk){ try{ state.notes=await idbAll(); }catch(e){ _idbOk=false; } }
+  if(!_idbOk){ try{ state.notes=JSON.parse(localStorage.getItem(LS_KEY))||[]; }catch(e){ state.notes=[]; } }
+  if(_idbOk && !state.notes.length){ try{ const old=JSON.parse(localStorage.getItem(LS_KEY)); if(old&&old.length){ state.notes=old; for(const n of old){ try{ await idbPut(n); }catch(e){} } } }catch(e){} }
+}
+function save(){ if(_idbOk){ state.notes.forEach(n=>{ idbPut(n).catch(()=>{}); }); } else { try{ localStorage.setItem(LS_KEY,JSON.stringify(state.notes)); }catch(e){} } }
+function removeNotePersist(id){ if(_idbOk) idbDel(id).catch(()=>{}); else save(); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function mdBold(s){ return esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>"); }
+
+/* ---------- PPTX (ZIP + deflate-raw + text + images) ---------- */
+async function inflateRaw(bytes){ const ds=new DecompressionStream("deflate-raw"); const w=ds.writable.getWriter(); w.write(bytes); w.close(); return new Uint8Array(await new Response(ds.readable).arrayBuffer()); }
+async function inflateZlib(bytes){ const ds=new DecompressionStream("deflate"); const w=ds.writable.getWriter(); w.write(bytes); w.close(); return new Uint8Array(await new Response(ds.readable).arrayBuffer()); }
+function bytesToB64(bytes){ let bin=""; const ch=0x8000; for(let i=0;i<bytes.length;i+=ch){ bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+ch)); } return btoa(bin); }
+function imgSize(bytes,mime){
+  try{
+    const dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+    if(mime==="image/png" && bytes.length>24) return {w:dv.getUint32(16,false),h:dv.getUint32(20,false)};
+    if(mime==="image/gif" && bytes.length>10) return {w:dv.getUint16(6,true),h:dv.getUint16(8,true)};
+    if(mime==="image/jpeg"){
+      let i=2;
+      while(i<bytes.length-9){
+        if(bytes[i]!==0xFF){ i++; continue; }
+        const m=bytes[i+1];
+        if(m===0xD8||m===0xD9||m===0x01||(m>=0xD0&&m<=0xD7)){ i+=2; continue; }
+        if((m>=0xC0&&m<=0xCF)&&m!==0xC4&&m!==0xC8&&m!==0xCC){ return {h:dv.getUint16(i+5,false),w:dv.getUint16(i+7,false)}; }
+        const len=dv.getUint16(i+2,false); if(len<2) break; i+=2+len;
+      }
+    }
+  }catch(e){}
+  return {w:0,h:0};
+}
+function readZipEntries(buf){
+  const dv=new DataView(buf); let eocd=-1;
+  for(let i=buf.byteLength-22;i>=0;i--){ if(dv.getUint32(i,true)===0x06054b50){ eocd=i; break; } }
+  if(eocd<0) throw new Error("To nie jest poprawny plik PPTX (brak ZIP).");
+  const count=dv.getUint16(eocd+10,true); let p=dv.getUint32(eocd+16,true); const entries=[];
+  for(let n=0;n<count;n++){
+    if(dv.getUint32(p,true)!==0x02014b50) break;
+    const method=dv.getUint16(p+10,true), compSize=dv.getUint32(p+20,true);
+    const nameLen=dv.getUint16(p+28,true), extraLen=dv.getUint16(p+30,true), commLen=dv.getUint16(p+32,true);
+    const lho=dv.getUint32(p+42,true);
+    const name=new TextDecoder("utf-8").decode(new Uint8Array(buf,p+46,nameLen));
+    entries.push({name,method,compSize,lho}); p+=46+nameLen+extraLen+commLen;
+  }
+  return entries;
+}
+async function entryBytes(buf,e){
+  const dv=new DataView(buf);
+  const lnameLen=dv.getUint16(e.lho+26,true), lextraLen=dv.getUint16(e.lho+28,true);
+  const start=e.lho+30+lnameLen+lextraLen; const comp=new Uint8Array(buf,start,e.compSize);
+  if(e.method===0) return comp;
+  if(e.method===8) return await inflateRaw(comp);
+  throw new Error("Nieobsługiwana kompresja ZIP ("+e.method+").");
+}
+function decodeXml(s){ return s.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&#(\d+);/g,(_,d)=>String.fromCharCode(+d)).replace(/&amp;/g,"&"); }
+function textFromSlideXml(xml){
+  const out=[]; const paras=xml.split(/<a:p\b/);
+  for(const seg of paras){ const runs=[]; const re=/<a:t>([\s\S]*?)<\/a:t>/g; let m; while((m=re.exec(seg))!==null){ runs.push(decodeXml(m[1])); } if(runs.length) out.push(runs.join("")); }
+  return out.join("\n");
+}
+async function parsePptx(buf){
+  const entries=readZipEntries(buf);
+  const re=/^ppt\/slides\/slide(\d+)\.xml$/;
+  const slides=entries.filter(e=>re.test(e.name)).sort((a,b)=>(+a.name.match(re)[1])-(+b.name.match(re)[1]));
+  if(!slides.length) throw new Error("Nie znaleziono slajdów w pliku PPTX.");
+  const total=slides.length;
+  const parts=[];
+  for(const s of slides){ const num=+s.name.match(re)[1]; const xml=new TextDecoder("utf-8").decode(await entryBytes(buf,s)); const t=textFromSlideXml(xml).trim(); if(t) parts.push("[Slajd "+num+"]\n"+t); }
+  const relRe=/^ppt\/slides\/_rels\/slide(\d+)\.xml\.rels$/; const mediaSlides={};
+  for(const e of entries){ const m=e.name.match(relRe); if(!m) continue; const num=+m[1]; const xml=new TextDecoder("utf-8").decode(await entryBytes(buf,e)); let mm; const tre=/media\/([A-Za-z0-9_.\-]+)/g; while((mm=tre.exec(xml))!==null){ (mediaSlides[mm[1]]=mediaSlides[mm[1]]||new Set()).add(num); } }
+  const imgEntries=entries.filter(e=>/^ppt\/media\/[^/]+\.(png|jpe?g|gif|bmp)$/i.test(e.name));
+  const images=[];
+  for(const e of imgEntries){
+    const base=e.name.split("/").pop(); const set=mediaSlides[base]||new Set(); const count=set.size;
+    if(total>=4 && count>Math.max(3,total*0.4)) continue;                 // powtarzające się logo/szablon
+    const bytes=await entryBytes(buf,e);
+    const mime=/\.png$/i.test(base)?"image/png":/\.gif$/i.test(base)?"image/gif":/\.bmp$/i.test(base)?"image/bmp":"image/jpeg";
+    const {w,h}=imgSize(bytes,mime);
+    if(w&&h){
+      const big=Math.max(w,h), small=Math.min(w,h);
+      if(big<170) continue;                       // ikona / przycisk (np. YouTube, Facebook)
+      if(small<70) continue;                      // cienki pasek / banner
+      if(big/Math.max(small,1)>6) continue;       // skrajne proporcje (logo-pasek)
+    } else if(bytes.length<6000){ continue; }      // nieznane wymiary: odrzuć małe
+    const slide=count?Math.min.apply(null,[...set]):null;
+    images.push({slide,dataUrl:"data:"+mime+";base64,"+bytesToB64(bytes),w,h,size:bytes.length});
+  }
+  images.sort((a,b)=>(a.slide||9999)-(b.slide||9999));
+  return {text:parts.join("\n\n"),images};
+}
+async function parsePdfSmart(buf){
+  if(window.pdfjsLib){
+    try{
+      const pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0))}).promise;
+      const parts=[];
+      for(let i=1;i<=pdf.numPages;i++){
+        const page=await pdf.getPage(i);
+        const tc=await page.getTextContent();
+        let lastY=null,out="";
+        tc.items.forEach(it=>{ const y=Math.round(it.transform[5]); if(lastY!==null&&Math.abs(y-lastY)>3) out+="\n"; else if(out&&!out.endsWith("\n")) out+=" "; out+=it.str; lastY=y; });
+        const t=out.replace(/[ \t]+\n/g,"\n").replace(/\n{3,}/g,"\n\n").trim();
+        if(t) parts.push("[Slajd "+i+"]\n"+t);
+      }
+      const joined=parts.join("\n\n");
+      if(joined.replace(/\[Slajd \d+\]/g,"").trim().length>60) return joined;
+    }catch(e){}
+  }
+  return await parsePdf(buf);
+}
+async function parsePdf(buf){
+  const bytes=new Uint8Array(buf); let latin=""; for(let i=0;i<bytes.length;i++) latin+=String.fromCharCode(bytes[i]);
+  let text=""; const streamRe=/stream\r?\n/g; let m;
+  while((m=streamRe.exec(latin))!==null){
+    const dictStart=latin.lastIndexOf("<<",m.index); const dict=dictStart>=0?latin.slice(dictStart,m.index):"";
+    const dataStart=m.index+m[0].length; const end=latin.indexOf("endstream",dataStart); if(end<0) continue;
+    let raw=latin.slice(dataStart,end); let content="";
+    if(/\/FlateDecode/.test(dict)){ try{ const arr=new Uint8Array(raw.length); for(let i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i)&0xff; content=new TextDecoder("latin1").decode(await inflateZlib(arr)); }catch(e){ continue; } } else { content=raw; }
+    if(/\bTj\b|\bTJ\b/.test(content)){ const tre=/\((?:\\.|[^\\()])*\)/g; let t; while((t=tre.exec(content))!==null){ let s=t[0].slice(1,-1).replace(/\\([()\\nrt])/g,(_,c)=>({n:"\n",r:"",t:"\t","(":"(",")":")","\\":"\\"}[c]||c)).replace(/\\(\d{1,3})/g,(_,o)=>String.fromCharCode(parseInt(o,8))); text+=s; } text+="\n"; }
+  }
+  return text.trim();
+}
+async function readFile(file){
+  const ext=(file.name.split(".").pop()||"").toLowerCase(); const buf=await file.arrayBuffer();
+  if(ext==="pptx") return await parsePptx(buf);
+  if(ext==="pdf"){ const t=await parsePdfSmart(buf); if(t&&t.length>120) return {text:t,images:[]}; throw new Error("Nie udało się wyciągnąć tekstu z tego PDF-a (możliwe, że to skan bez warstwy tekstowej). Skopiuj treść i wklej ją w pole tekstowe poniżej."); }
+  if(ext==="txt"||ext==="md") return {text:new TextDecoder("utf-8").decode(new Uint8Array(buf)),images:[]};
+  throw new Error("Nieobsługiwany typ pliku: ."+ext+". Użyj PPTX, PDF, TXT lub wklej tekst.");
+}
+
+/* ---------- AI ---------- */
+const MODELS=[
+  {id:"claude-haiku-4-5-20251001",label:"Haiku 4.5 — najtańszy (~0,05$ / notatka)"},
+  {id:"claude-sonnet-4-6",label:"Sonnet 4.6 — polecany (~0,15$ / notatka)"},
+  {id:"claude-opus-4-8",label:"Opus 4.8 — najmocniejszy (~0,25$ / notatka)"}
+];
+const CFG_KEY="notatkiai.cfg";
+function getCfg(){ try{ return Object.assign({apiKey:"",model:"claude-sonnet-4-6"},JSON.parse(localStorage.getItem(CFG_KEY)||"{}")); }catch(e){ return {apiKey:"",model:"claude-sonnet-4-6"}; } }
+function setCfg(c){ try{ localStorage.setItem(CFG_KEY,JSON.stringify(c)); }catch(e){} }
+function aiAvailable(){ return !!getCfg().apiKey || !!(window.cowork && typeof window.cowork.askClaude==="function"); }
+async function ask(prompt,maxTok){
+  const c=getCfg();
+  if(c.apiKey){
+    let r;
+    try{
+      r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":c.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:c.model||"claude-sonnet-4-6",max_tokens:maxTok||8000,messages:[{role:"user",content:prompt}]})});
+    }catch(e){ throw new Error("Brak połączenia z API — sprawdź internet."); }
+    if(!r.ok){
+      let msg="HTTP "+r.status; try{ const e=await r.json(); msg=(e&&e.error&&e.error.message)||msg; }catch(_e){}
+      if(r.status===401) msg="Nieprawidłowy klucz API (sprawdź w ⚙ Ustawieniach).";
+      if(r.status===429) msg="Przekroczony limit zapytań — odczekaj chwilę. "+msg;
+      throw new Error(msg);
+    }
+    const d=await r.json();
+    return (d.content||[]).map(b=>b.text||"").join("");
+  }
+  if(window.cowork && typeof window.cowork.askClaude==="function"){
+    let r; try{ r=await window.cowork.askClaude(prompt,[]); }catch(e){ r=await window.cowork.askClaude(prompt); }
+    if(typeof r==="string") return r; if(r==null) return "";
+    return r.text ?? r.completion ?? r.response ?? r.output ?? r.message ?? (r.content&&(Array.isArray(r.content)?r.content.map(c2=>c2.text||"").join(""):r.content)) ?? JSON.stringify(r);
+  }
+  throw new Error("Brak skonfigurowanego AI — wpisz klucz API w ⚙ Ustawienia AI.");
+}
+function extractJson(s){ if(!s) throw new Error("Pusta odpowiedź AI."); let t=s.trim().replace(/^```(?:json)?/i,"").replace(/```$/,"").trim(); const a=t.indexOf("{"),b=t.lastIndexOf("}"); if(a<0||b<0) throw new Error("AI nie zwróciło danych JSON."); return JSON.parse(t.slice(a,b+1)); }
+function escapeStrayQuotes(s){
+  let out="",inStr=false;
+  for(let i=0;i<s.length;i++){
+    const c=s[i];
+    if(!inStr){ out+=c; if(c==='"') inStr=true; continue; }
+    if(c==='\\'){ out+=c+(s[i+1]||""); i++; continue; }
+    if(c==='"'){
+      let j=i+1; while(j<s.length && (s[j]===' '||s[j]==='\t'||s[j]==='\n'||s[j]==='\r')) j++;
+      const nx=s[j];
+      if(nx===undefined||nx===':'||nx===','||nx==='}'||nx===']'||nx==='"'){ out+='"'; inStr=false; }
+      else out+='\\"';
+      continue;
+    }
+    if(c==='\n'){ out+='\\n'; continue; }
+    if(c==='\r'){ out+='\\r'; continue; }
+    if(c==='\t'){ out+='\\t'; continue; }
+    out+=c;
+  }
+  return out;
+}
+function repairJson(s){
+  let t=(s||"").trim().replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();
+  const a=t.indexOf("{"),b=t.lastIndexOf("}"); if(a>=0&&b>=0) t=t.slice(a,b+1);
+  t=escapeStrayQuotes(t);
+  t=t.replace(/("|\]|\})(\s*\n\s*)("|\{|\[)/g,(m,p1,ws,p3)=>p1+","+ws+p3); // brak przecinka na końcu linii
+  t=t.replace(/,\s*([}\]])/g,"$1"); // nadmiarowy przecinek
+  return t;
+}
+async function askJson(prompt){
+  let lastErr;
+  for(let attempt=0;attempt<2;attempt++){
+    const p=attempt===0?prompt:prompt+"\n\nUWAGA: poprzednia odpowiedź była niepoprawnym JSON. Zwróć teraz w 100% POPRAWNY JSON, z prawidłowymi ucieczkami znaków.";
+    const raw=await ask(p);
+    try{ return JSON.parse(repairJson(raw)); }catch(e){ lastErr=e; }
+    try{ return extractJson(raw); }catch(e){ lastErr=e; }
+    try{ const fixed=await ask("Popraw poniższy tekst do w pełni poprawnego JSON. Zachowaj te same dane, zmień TYLKO składnię (ucieczki cudzysłowów i znaków specjalnych, przecinki, domknięcie nawiasów). Zwróć WYŁĄCZNIE JSON, bez markdown.\n\n"+String(raw).slice(0,22000)); return JSON.parse(repairJson(fixed)); }catch(e){ lastErr=e; }
+  }
+  throw lastErr||new Error("AI zwróciło nieprawidłowy JSON.");
+}
+
+const NOTE_PROMPT=(txt,imgSlides)=>`Jesteś doświadczonym dydaktykiem akademickim. Na podstawie materiału z wykładu napisz notatkę do nauki PO POLSKU. Notatka ma być KOMPLETNA (opracowany cały materiał, od pierwszego do OSTATNIEGO slajdu — nie urywaj jej w połowie) i jednocześnie napisana mądrze: każda informacja pojawia się w niej dokładnie JEDEN raz.
+STRUKTURA:
+1. Podziel materiał na 3-6 rozdziałów ("group"), każdy z 1-4 sekcjami. ŁĄCZ drobne, pokrewne wątki w jedną sekcję — nie twórz osobnej sekcji dla każdego slajdu ani sekcji-zapchajek. Lepiej mniej sekcji, ale treściwych.
+2. "heading": konkretna nazwa zagadnienia w 1-4 słowach (np. „Płat czołowy", „Opony mózgowe"). Bez całych zdań.
+3. "lead": 1-3 zdania otwierające sekcję, które od razu podają najważniejszą treść zagadnienia. ZAKAZANE: parafrazowanie nagłówka, zwroty meta („ta sekcja omawia…", „główną myślą jest…"), ogólniki bez konkretu. Jeśli nie masz nic ponad to, co powiedzą punkty — ustaw "".
+4. "points": 3-7 punktów w formacie "**Pojęcie:** wyjaśnienie". Każdy punkt wnosi NOWĄ informację — nie powtarzaj treści leadu, innych punktów ani innych sekcji. Pojęcia, które wykład tylko wylicza (rodzaje, płaszczyzny, terminologia kierunkowa), rozwiń o krótką definicję każdego z nich. Nazwy własne i przypadki sygnalizowane w wykładzie (np. H.M., Phineas Gage, zespół Korsakowa) wyjaśnij jednym zdaniem.
+5. "examples": maksymalnie 1-2 na sekcję i TYLKO gdy realnie pomagają zrozumieć (trafna analogia, przypadek kliniczny, zastosowanie praktyczne). Nie wymyślaj przykładów na siłę — częściej zostawiaj pustą listę [].
+6. "table": tylko gdy treść to naturalne zestawienie (struktura → funkcja, porównanie lewa vs prawa półkula, obszar → tętnica); w innym wypadku null. Nie dubluj w punktach danych, które są w tabeli.
+KONTROLA JAKOŚCI — zanim zwrócisz odpowiedź, sprawdź całość:
+- żadne zdanie, fakt ani sformułowanie nie występuje w notatce dwukrotnie (także między leadem a punktami);
+- lead każdej sekcji wnosi treść, a nie przeformułowany nagłówek;
+- końcowe partie materiału są opracowane tak samo starannie jak początek;
+- tekst czyta się płynnie jak dobrze zredagowana notatka, nie jak szablon.
+${imgSlides.length?`OBRAZY: dostępne są zdjęcia ze slajdów: ${imgSlides.join(", ")}. W polu "imageSlides" sekcji podaj numery slajdów, których zdjęcie WYRAŹNIE ilustruje treść tej sekcji (diagram, schemat, przekrój, wykres). Każdy obraz przypisz najwyżej do jednej sekcji — tej, której dotyczy bezpośrednio. Gdy przypisujesz obraz, w leadzie lub punktach tej sekcji odnieś się do tego, co konkretnie widać na ilustracji (bez podawania numeru slajdu). Jeśli nie masz pewności, że obraz pasuje — NIE przypisuj go; lepiej pominąć niż wstawić nietrafiony.`:`Pole "imageSlides" każdej sekcji zostaw jako pustą listę.`}
+W wartościach tekstowych NIE używaj prostego cudzysłowu " — cytaty zapisuj polskimi „ ". Nie zostawiaj przecinka po ostatnim elemencie listy ani obiektu.
+Zwróć WYŁĄCZNIE poprawny JSON (bez markdown, bez tekstu poza JSON):
+{"title":string,"intro":string (2-4 zdania streszczenia, bez powtarzania tytułu),"sections":[{"group":string,"heading":string,"lead":string,"points":string[],"examples":[{"label":string,"text":string}],"table":{"headers":string[],"rows":string[][]}|null,"imageSlides":number[]}],"studyQuestions":string[] (5-6 pytań otwartych do powtórki, obejmujących różne rozdziały)}
+Materiał (slajdy oznaczone [Slajd N]):
+"""${txt.slice(0,60000)}"""`;
+
+const QUIZ_PROMPT=(note,count)=>`Jesteś egzaminatorem akademickim układającym pytania, które UCZĄ. Na podstawie poniższej notatki przygotuj quiz PO POLSKU: ${count} pytań jednokrotnego wyboru, 4 odpowiedzi każde (dokładnie jedna poprawna).
+ZASADY:
+1. Pytania sprawdzają ZROZUMIENIE i umiejętność zastosowania wiedzy, nie pamięć przypadkowych szczegółów. Mieszaj typy pytań: istota pojęcia, rozróżnienie dwóch mylonych pojęć, skutek/przyczyna (np. objaw uszkodzenia → struktura), krótki scenariusz praktyczny („Pacjent przejawia X — co to wskazuje?").
+2. Pokryj RÓŻNE rozdziały notatki, od początku do końca; nie układaj dwóch pytań o ten sam fakt.
+3. Dystraktory muszą być wiarygodne: używaj pojęć z TEJ SAMEJ notatki, które uczący się realnie ze sobą myli. Zero odpowiedzi absurdalnych oraz opcji „wszystkie powyższe"/„żadne z powyższych".
+4. Wszystkie 4 odpowiedzi w podobnej długości i formie gramatycznej; pozycja poprawnej odpowiedzi losowa.
+5. Pytań z przeczeniem używaj wyjątkowo i zapisuj przeczenie wielkimi literami (NIE).
+6. "explanation": 1-2 zdania — dlaczego ta odpowiedź jest poprawna i czym różni się od najbardziej kuszącego dystraktora.
+7. Ułóż pytania od łatwiejszych do trudniejszych (ostatnie powinny wymagać wnioskowania, nie tylko rozpoznania).
+Zwróć WYŁĄCZNIE poprawny JSON (bez markdown): {"questions":[{"q":string,"options":string[4],"correct":number(0-3),"explanation":string}]}
+Notatka:
+"""${JSON.stringify(note).slice(0,12000)}"""`;
+
+function wordCount(o){
+  let n=(o.intro||o.summary||"").split(/\s+/).length;
+  (o.sections||[]).forEach(s=>{ n+=(s.heading||"").split(/\s+/).length+(s.lead||s.mainIdea||"").split(/\s+/).length; (s.points||[]).forEach(p=>n+=p.split(/\s+/).length); (s.examples||[]).forEach(e=>n+=(e.text||"").split(/\s+/).length); });
+  return n;
+}
+
+/* ---------- Rendering ---------- */
+const content=document.getElementById("content");
+const lib=document.getElementById("lib");
+function figsHtml(arr){ if(!arr||!arr.length) return ""; return '<div class="figs">'+arr.map(im=>{ const body=im.svg?`<div class="figsvg">${im.svg}</div>`:`<img src="${im.dataUrl}" alt="">`; const cap=im.cap?`<figcaption class="fcap">${esc(im.cap)}</figcaption>`:""; return `<figure class="fig">${body}${cap}</figure>`; }).join("")+'</div>'; }
+function galleryGrid(arr){ return '<div class="gallery">'+arr.map(im=>`<div class="gcard"><img src="${im.dataUrl}" alt="">${im.cap?`<div class="gcap">${esc(im.cap)}</div>`:""}</div>`).join("")+'</div>'; }
+function tableHtml(t){ if(!t||!t.headers||!t.headers.length) return ""; return `<div class="tblwrap"><table class="tbl"><thead><tr>${t.headers.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${(t.rows||[]).map(r=>`<tr>${(r||[]).map(c=>`<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
+function openLightbox(src){
+  const old=document.getElementById("lightbox"); if(old) old.remove();
+  const lb=document.createElement("div"); lb.id="lightbox"; lb.className="lightbox";
+  lb.innerHTML=`<div class="lbctrl"><span class="lbhint">kółko myszy = zoom · przeciągnij = przesuń</span><button data-z="-" title="Oddal">−</button><span class="lbpct" id="lbPct">100%</span><button data-z="+" title="Przybliż">＋</button><button data-z="0" title="Dopasuj">⤾</button><button data-z="x" title="Zamknij">×</button></div><div class="lbview"><img src="${src}" alt="" draggable="false"></div>`;
+  document.body.appendChild(lb);
+  const img=lb.querySelector("img"), view=lb.querySelector(".lbview"), pct=lb.querySelector("#lbPct");
+  let sc=1,tx=0,ty=0,drag=null,moved=false;
+  function apply(){ img.style.transform=`translate(${tx}px,${ty}px) scale(${sc})`; pct.textContent=Math.round(sc*100)+"%"; }
+  function zoom(f){ sc=Math.min(8,Math.max(.3,sc*f)); if(sc===1){tx=0;ty=0;} apply(); }
+  lb.querySelectorAll(".lbctrl button").forEach(b=>b.onclick=e=>{ e.stopPropagation(); const z=b.getAttribute("data-z"); if(z==="+")zoom(1.3); else if(z==="-")zoom(1/1.3); else if(z==="0"){sc=1;tx=0;ty=0;apply();} else lb.remove(); });
+  view.addEventListener("wheel",e=>{ e.preventDefault(); zoom(e.deltaY<0?1.15:1/1.15); },{passive:false});
+  img.addEventListener("pointerdown",e=>{ e.preventDefault(); drag={x:e.clientX-tx,y:e.clientY-ty}; moved=false; img.setPointerCapture(e.pointerId); img.style.cursor="grabbing"; });
+  img.addEventListener("pointermove",e=>{ if(!drag) return; tx=e.clientX-drag.x; ty=e.clientY-drag.y; moved=true; apply(); });
+  img.addEventListener("pointerup",()=>{ drag=null; img.style.cursor="grab"; });
+  img.addEventListener("dblclick",()=>{ if(sc===1) zoom(2); else {sc=1;tx=0;ty=0;apply();} });
+  view.addEventListener("click",e=>{ if(e.target===view) lb.remove(); });
+  document.addEventListener("keydown",function esc(e){ if(e.key==="Escape"){ lb.remove(); document.removeEventListener("keydown",esc); } });
+  apply();
+}
+document.addEventListener("click",e=>{ if(e.target.matches(".fig img, .gcard img")) openLightbox(e.target.src); });
+
+function libTabsHtml(){
+  const qn=state.notes.filter(n=>n.quiz&&n.quiz.length).length;
+  return `<button class="libtab${state.libTab!=="quizzes"?" active":""}" data-tab="notes">📄 Notatki <span class="libcnt">${state.notes.length}</span></button><button class="libtab${state.libTab==="quizzes"?" active":""}" data-tab="quizzes">🧠 Quizy <span class="libcnt">${qn}</span></button>`;
+}
+function libItemsHtml(){
+  if(state.libTab==="quizzes"){
+    const qs=state.notes.filter(n=>n.quiz&&n.quiz.length);
+    if(!qs.length) return '<div style="font-size:12.5px;color:var(--muted);padding:6px">Brak quizów. Otwórz notatkę i kliknij „Stwórz quiz”.</div>';
+    return qs.map(n=>`<div class="item${n.id===state.currentId&&state.view==="quiz"?" active":""}" data-openquiz="${n.id}"><h4>${esc(n.note.title||"Bez tytułu")}</h4><div class="meta">🧠 ${n.quiz.length} pytań · ${new Date(n.created).toLocaleDateString("pl-PL")}</div></div>`).join("");
+  }
+  if(!state.notes.length) return '<div style="font-size:12.5px;color:var(--muted);padding:6px">Brak notatek. Kliknij „Nowa notatka”.</div>';
+  return state.notes.map(n=>`<div class="item${n.id===state.currentId&&state.view!=="input"?" active":""}" data-open="${n.id}"><button class="del" title="Usuń" data-del="${n.id}">×</button><h4>${esc(n.note.title||"Bez tytułu")}</h4><div class="meta">${n.quiz?"📝 notatka + quiz":"📝 notatka"} · ${new Date(n.created).toLocaleDateString("pl-PL")}</div></div>`).join("");
+}
+function wireLib(container){
+  container.querySelectorAll("[data-open]").forEach(el=>el.addEventListener("click",e=>{ if(e.target.getAttribute("data-del")) return; closeDrawer(); openNote(el.getAttribute("data-open")); }));
+  container.querySelectorAll("[data-openquiz]").forEach(el=>el.addEventListener("click",()=>{ closeDrawer(); state.currentId=el.getAttribute("data-openquiz"); state.qz=null; state.view="quiz"; renderNote(); }));
+  container.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",e=>{ e.stopPropagation(); delNote(b.getAttribute("data-del")); }));
+}
+function renderLib(){
+  ["libTabsSide","libTabsDrawer"].forEach(id=>{ const el=document.getElementById(id); if(el){ el.innerHTML=libTabsHtml(); el.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{ state.libTab=b.getAttribute("data-tab"); renderLib(); }); } });
+  lib.innerHTML=libItemsHtml(); wireLib(lib);
+  const dl=document.getElementById("drawerLib"); if(dl){ dl.innerHTML=libItemsHtml(); wireLib(dl); }
+  const cnt=document.getElementById("mnCount"); if(cnt) cnt.textContent=state.notes.length;
+}
+function openDrawer(){ const d=document.getElementById("drawer"); if(d) d.classList.add("open"); }
+function closeDrawer(){ const d=document.getElementById("drawer"); if(d) d.classList.remove("open"); }
+function setupChrome(){
+  const mn=document.getElementById("mnBtn"); if(mn) mn.onclick=openDrawer;
+  const dx=document.getElementById("drawerX"); if(dx) dx.onclick=closeDrawer;
+  const dr=document.getElementById("drawer"); if(dr) dr.addEventListener("click",e=>{ if(e.target.id==="drawer") closeDrawer(); });
+  const nw=()=>{ state.draft={title:"",text:"",fileName:"",images:[]}; closeDrawer(); renderInput(); };
+  const a=document.getElementById("mnNew"); if(a) a.onclick=nw;
+  const b=document.getElementById("drawerNew"); if(b) b.onclick=nw;
+}
+
+function renderInput(){
+  state.view="input"; renderLib(); const f=state.draft;
+  content.innerHTML=`
+    <div class="drop" id="drop">
+      <div class="icbadge">📚</div>
+      <h3>Wgraj wykład</h3>
+      <p>Przeciągnij i upuść plik <b>PPTX / PowerPoint</b> (lub PDF), albo wybierz z dysku. Zdjęcia ze slajdów zostaną przypisane do sekcji notatki.</p>
+      <button class="filebtn" id="pick">Wybierz plik</button>
+      <div id="fileWrap" style="margin-top:14px"></div>
+    </div>
+    <div class="or">albo wklej tekst</div>
+    <input class="titlefield" id="titleF" placeholder="Tytuł notatki (opcjonalnie)" value="${esc(f.title)}">
+    <textarea id="textF" placeholder="Wklej tu treść wykładu, notatki, transkrypcję…">${esc(f.text)}</textarea>
+    <div id="aiWarn"></div>
+    <div class="row"><button class="btn" id="genBtn">✨ Generuj notatkę</button>${getCfg().apiKey?`<select id="modelSel" class="modelsel" title="Model AI">${MODELS.map(m=>`<option value="${m.id}"${m.id===getCfg().model?" selected":""}>${m.label}</option>`).join("")}</select>`:""}<span style="font-size:12.5px;color:var(--muted)" id="charInfo"></span></div>`;
+  if(!aiAvailable()) document.getElementById("aiWarn").innerHTML=`<div class="banner warn">⚠️ Aby generować notatki, wpisz klucz API w <b>⚙ Ustawienia AI</b> (panel po lewej).</div>`;
+  const drop=document.getElementById("drop"), fileWrap=document.getElementById("fileWrap");
+  const titleF=document.getElementById("titleF"), textF=document.getElementById("textF");
+  function refreshChar(){ const len=(textF.value||f.text||"").length; document.getElementById("charInfo").textContent=len?`${len.toLocaleString("pl-PL")} znaków`:""; }
+  function showFile(){ if(f.fileName){ const imgN=(f.images&&f.images.length)?` <span class="filechip" style="background:#eef6ef;border-color:#cfe6cf;color:#2f7d46">🖼️ ${f.images.length} obraz(y) ze slajdów</span>`:""; fileWrap.innerHTML=`<span class="filechip">📎 ${esc(f.fileName)} <button id="rmF">×</button></span>${imgN}`; document.getElementById("rmF").onclick=()=>{ f.fileName=""; f.text=""; f.images=[]; textF.value=""; showFile(); refreshChar(); }; } else fileWrap.innerHTML=""; }
+  showFile(); refreshChar();
+  titleF.addEventListener("input",()=>f.title=titleF.value);
+  textF.addEventListener("input",()=>{ f.text=textF.value; refreshChar(); });
+  document.getElementById("pick").onclick=()=>document.getElementById("fileInput").click();
+  document.getElementById("genBtn").onclick=onGenerate;
+  const mSel=document.getElementById("modelSel"); if(mSel) mSel.onchange=()=>{ const c=getCfg(); c.model=mSel.value; setCfg(c); };
+  ["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.add("drag"); }));
+  ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.remove("drag"); }));
+  drop.addEventListener("drop",e=>{ const file=e.dataTransfer.files[0]; if(file) handleFile(file); });
+}
+
+async function handleFile(file){
+  const f=state.draft; f.fileName=file.name; const wrap=document.getElementById("fileWrap");
+  if(wrap) wrap.innerHTML=`<span class="filechip">⏳ Wczytuję ${esc(file.name)}…</span>`;
+  try{ const res=await readFile(file); f.text=res.text; f.images=res.images||[]; if(!f.title) f.title=file.name.replace(/\.(pptx|pdf|txt|md)$/i,""); renderInput(); }
+  catch(err){ if(wrap) wrap.innerHTML=`<div class="banner err" style="text-align:left">❌ ${esc(err.message)}</div>`; f.fileName=""; f.images=[]; }
+}
+
+function loadingView(title,steps){ content.innerHTML=`<div class="center"><div><div class="spinner"></div><h3 style="color:var(--ink);margin:0 0 6px">${esc(title)}</h3><div class="steps" id="stepLine">${esc(steps[0]||"")}</div></div></div>`; let i=0; return setInterval(()=>{ i=(i+1)%steps.length; const el=document.getElementById("stepLine"); if(el) el.textContent=steps[i]; },1400); }
+
+async function onGenerate(){
+  const f=state.draft; const src=(f.text||"").trim();
+  if(src.length<40){ alert("Dodaj plik lub wklej więcej tekstu (min. ~40 znaków)."); return; }
+  if(!aiAvailable()){ alert("Najpierw wpisz klucz API w ⚙ Ustawienia AI."); return; }
+  const imgSlides=[...new Set((f.images||[]).map(im=>im.slide).filter(x=>x!=null))].sort((a,b)=>a-b);
+  const t=loadingView("Tworzę notatkę…",["Analizuję materiał wykładu","Wyłapuję kluczowe pojęcia","Dopasowuję zdjęcia do sekcji","Porządkuję strukturę notatki"]);
+  try{
+    const note=await askJson(NOTE_PROMPT(src,imgSlides));
+    if(f.title) note.title=f.title;
+    note.sections=note.sections||[]; note.studyQuestions=note.studyQuestions||[];
+    const entry={id:uid(),created:Date.now(),source:src.slice(0,60000),note,quiz:null,images:(f.images||[]).slice(0,20)};
+    state.notes.unshift(entry); save();
+    clearInterval(t); state.draft={title:"",text:"",fileName:"",images:[]}; openNote(entry.id);
+  }catch(err){ clearInterval(t); content.innerHTML=`<div class="banner err">❌ Nie udało się wygenerować notatki: ${esc(err.message)}</div><div class="row"><button class="btn" id="retryGen">↻ Spróbuj ponownie</button><button class="btn ghost" id="back">← Wróć</button></div>`; document.getElementById("back").onclick=renderInput; document.getElementById("retryGen").onclick=onGenerate; }
+}
+
+function openNote(id){ state.currentId=id; state.view="note"; state.qz=null; renderNote(); }
+
+function renderNote(){
+  const entry=state.notes.find(n=>n.id===state.currentId); if(!entry){ renderInput(); return; }
+  renderLib(); const n=entry.note; const mins=Math.max(1,Math.round(wordCount(n)/180));
+  content.innerHTML=`
+    <div class="tabs">
+      <button class="tab ${state.view==="note"?"active":""}" data-v="note">📄 Notatka</button>
+      <button class="tab ${state.view==="quiz"?"active":""}" data-v="quiz">🧠 Quiz</button>
+    </div>
+    <div id="pane"></div>`;
+  content.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{ state.view=t.dataset.v; if(state.view==="quiz") renderQuizPane(); else renderNote(); });
+  if(state.view==="quiz"){ renderQuizPane(); return; }
+  const pane=document.getElementById("pane");
+
+  const imgs=entry.images||[]; const bySlide={};
+  imgs.forEach(im=>{ if(im.slide!=null){ (bySlide[im.slide]=bySlide[im.slide]||[]).push(im); } });
+  const used=new Set();
+  function figsForSection(s){
+    let figs=(s.figs||[]).slice();
+    (s.imageSlides||[]).forEach(sn=>{ (bySlide[sn]||[]).forEach(im=>{ if(!used.has(im)){ figs.push(im); used.add(im); } }); });
+    return figs;
+  }
+
+  let bodyHtml=""; let curGroup=null;
+  (n.sections||[]).forEach((s,si)=>{
+    if(s.group && s.group!==curGroup){ curGroup=s.group; bodyHtml+=`<h2 class="gh"><span class="ghhl">${esc(s.group)}</span></h2>`; }
+    const head=s.heading||s.question||"Sekcja";
+    let inner="";
+    const leadTxt=s.lead||s.mainIdea;
+    if(leadTxt) inner+=`<p class="lead">${esc(leadTxt)}</p>`;
+    if(s.points&&s.points.length) inner+=`<ul class="pts">${s.points.map(p=>`<li>${mdBold(p)}</li>`).join("")}</ul>`;
+    inner+=figsHtml(figsForSection(s));
+    if(s.table) inner+=tableHtml(s.table);
+    if(s.examples&&s.examples.length) inner+=`<div class="exbox">${s.examples.map(e=>`<div class="ex"><span class="exlbl">💡 ${esc(e.label)}:</span> ${esc(e.text)}</div>`).join("")}</div>`;
+    bodyHtml+=`<div class="sec"><button class="sechead"><span class="chev">▸</span><span class="qhead">${esc(head)}</span></button><div class="secbody">${inner}</div></div>`;
+  });
+
+  const inlineFigs=(n.sections||[]).reduce((a,s)=>a+((s.figs&&s.figs.length)||0),0);
+  const imgCount=used.size+inlineFigs;
+  const introTxt=n.intro||n.summary||"";
+
+  pane.innerHTML=`
+    <div class="note">
+      <h1>${esc(n.title||"Notatka")}</h1>
+      <div class="readtime"><span class="doctag">📄 Dokument</span> <span class="dot"></span> ⏱ ~${mins} min <span class="dot"></span> ${(n.sections||[]).length} sekcji${imgCount?` <span class="dot"></span> 🖼️ ${imgCount} ilustr.`:""} <span class="dot"></span> ${new Date(entry.created).toLocaleDateString("pl-PL")}</div>
+      ${introTxt?`<div class="intro">${esc(introTxt)}</div>`:""}
+      <div class="notetools">
+        <button class="toolbtn" id="recallBtn" title="Ukryj odpowiedzi i sprawdzaj się">🧠 Tryb przypominania</button>
+        <button class="toolbtn" id="readBtn" title="Większy tekst i odstępy">A+ Czytelność</button>
+        <button class="toolbtn" id="exportBtn" title="Zapisz notatkę do pliku — do przeniesienia na inne urządzenie">📤 Eksportuj</button>
+        <button class="toolbtn" id="pdfBtn" title="Zapisz notatkę jako PDF">📄 Pobierz PDF</button>
+      </div>
+      ${bodyHtml}
+      ${(n.studyQuestions&&n.studyQuestions.length)?`<div class="h2sec">Pytania do powtórki</div><ol class="sq">${n.studyQuestions.map(q=>`<li>${esc(q)}</li>`).join("")}</ol>`:""}
+      <div class="row" style="margin-top:26px"><button class="btn" id="goQuiz">🧠 ${entry.quiz?"Rozwiąż quiz":"Stwórz quiz z tej notatki"}</button></div>
+    </div>`;
+
+  pane.querySelectorAll(".sec .sechead").forEach(h=>h.onclick=()=>h.parentElement.classList.toggle("collapsed"));
+  const noteEl=pane.querySelector(".note");
+  const recallBtn=document.getElementById("recallBtn"); let recall=false;
+  recallBtn.onclick=()=>{ recall=!recall; pane.querySelectorAll(".sec").forEach(se=>se.classList.toggle("collapsed",recall)); recallBtn.textContent=recall?"👁 Pokaż wszystko":"🧠 Tryb przypominania"; recallBtn.classList.toggle("active",recall); };
+  const readBtn=document.getElementById("readBtn");
+  readBtn.onclick=()=>{ noteEl.classList.toggle("readable"); readBtn.classList.toggle("active"); };
+  document.getElementById("exportBtn").onclick=()=>exportNote(entry);
+  document.getElementById("pdfBtn").onclick=printNote;
+  const gq=document.getElementById("goQuiz"); if(gq) gq.onclick=()=>{ state.qz=null; state.view="quiz"; renderNote(); };
+}
+
+function fireIcons(n){ if(n<=0) return "🔥 ×0"; const cap=Math.min(n,6); return "🔥".repeat(cap)+(n>6?" ×"+n:""); }
+
+function renderQuizPane(){
+  const entry=state.notes.find(n=>n.id===state.currentId); const pane=document.getElementById("pane");
+  if(state.qz && state.qz.active) renderQuizPlay(entry,pane); else renderQuizSetup(entry,pane);
+}
+
+function renderQuizSetup(entry,pane){
+  const cfg=state.quizCfg; const has=!!(entry.quiz&&entry.quiz.length);
+  pane.innerHTML=`
+    <div class="qsetup">
+      <div class="qbadge">🧠</div>
+      <h2 class="qtitle">Quiz</h2>
+      <p class="qsub">Sprawdź się — wybierz liczbę pytań i tryb gry.</p>
+      <div class="qcard">
+        <div class="qopt">
+          <div class="qoptlbl">Liczba pytań</div>
+          <div class="sliderwrap"><input type="range" id="qCount" min="8" max="20" step="1" value="${cfg.count}"><span class="sval" id="qCountV">${cfg.count}</span></div>
+        </div>
+        <div class="qopt">
+          <div><div class="qoptlbl">Tryb Roguelike 💀</div><div class="qopthint">Jeden błąd kończy grę — masz tylko jedno „życie".</div></div>
+          <label class="switch"><input type="checkbox" id="qRogue" ${cfg.rogue?"checked":""}><span class="track"></span></label>
+        </div>
+      </div>
+      <div class="row" style="justify-content:center">
+        <button class="btn" id="qGen">✨ Generuj <span id="qGenN">${cfg.count}</span> pytań</button>
+        ${has?`<button class="btn ghost" id="qPlay">▶ Zagraj (${entry.quiz.length})</button>`:""}
+      </div>
+      ${!aiAvailable()?`<div class="banner warn" style="margin-top:14px;text-align:left">⚠️ Aby generować quizy, wpisz klucz API w <b>⚙ Ustawienia AI</b>.</div>`:""}
+    </div>`;
+  const cEl=document.getElementById("qCount");
+  cEl.oninput=()=>{ cfg.count=+cEl.value; document.getElementById("qCountV").textContent=cfg.count; document.getElementById("qGenN").textContent=cfg.count; };
+  document.getElementById("qRogue").onchange=e=>{ cfg.rogue=e.target.checked; };
+  document.getElementById("qGen").onclick=()=>requestQuiz(cfg.count);
+  const pb=document.getElementById("qPlay"); if(pb) pb.onclick=()=>startQuiz(entry);
+}
+
+async function requestQuiz(count){
+  const entry=state.notes.find(n=>n.id===state.currentId); if(!entry) return;
+  if(!aiAvailable()){ alert("Najpierw wpisz klucz API w ⚙ Ustawienia AI."); return; }
+  const t=loadingView("Układam quiz…",["Przeglądam notatkę","Wybieram kluczowe fakty","Tworzę pytania i odpowiedzi","Dodaję uzasadnienia"]);
+  try{
+    const data=await askJson(QUIZ_PROMPT(entry.note,count));
+    const qs=(data.questions||[]).filter(q=>q&&q.options&&q.options.length>=2).slice(0,count);
+    if(!qs.length) throw new Error("Quiz pusty.");
+    entry.quiz=qs; save(); clearInterval(t); startQuiz(entry);
+  }catch(err){ clearInterval(t); state.qz=null; state.view="quiz"; renderNote(); setTimeout(()=>alert("Nie udało się stworzyć quizu: "+err.message),50); }
+}
+
+function startQuiz(entry){
+  state.qz={active:true,mode:state.quizCfg.rogue?"rogue":"normal",i:0,picked:null,revealed:false,correct:0,answered:0,streak:0,best:0,over:false,done:false};
+  state.view="quiz"; renderNote();
+}
+
+function renderQuizPlay(entry,pane){
+  const qz=state.qz, qs=entry.quiz, N=qs.length;
+  if(qz.done){
+    const pct=Math.round(qz.correct/N*100); const ic=pct>=80?"🏆":pct>=50?"👏":"📘";
+    pane.innerHTML=`<div class="qresult"><div class="qbadge big">${ic}</div><h2 class="qtitle">Wynik: ${qz.correct} / ${N}</h2><p class="qsub">${pct}% poprawnych${qz.mode==="rogue"?" — ukończono tryb Roguelike! 🎉":""}</p><div class="qstats"><div class="qstat"><b>${qz.correct}</b><span>poprawnych</span></div><div class="qstat"><b>${N-qz.correct}</b><span>błędnych</span></div><div class="qstat"><b>${qz.best}</b><span>najdł. seria 🔥</span></div></div><div class="row" style="justify-content:center"><button class="btn" id="qAgain">↻ Zagraj ponownie</button><button class="btn ghost" id="qBack">← Ustawienia</button></div></div>`;
+    document.getElementById("qAgain").onclick=()=>startQuiz(entry);
+    document.getElementById("qBack").onclick=()=>{ state.qz=null; renderNote(); };
+    return;
+  }
+  const q=qs[qz.i];
+  const opts=q.options.map((o,oi)=>{
+    let cls="opt", mk=String.fromCharCode(65+oi);
+    if(qz.revealed){ if(oi===q.correct){ cls+=" correct"; mk="✓"; } else if(oi===qz.picked){ cls+=" wrong"; mk="✕"; } }
+    else if(qz.picked===oi) cls+=" sel";
+    return `<div class="${cls}" data-o="${oi}"><div class="mk">${mk}</div><div class="ot">${esc(o)}</div></div>`;
+  }).join("");
+  let footer;
+  if(qz.over) footer=`<div class="gameover">💀 Koniec gry — błędna odpowiedź w trybie Roguelike.</div><div class="scorebar"><button class="btn" id="qRestart">↻ Zacznij od nowa</button><button class="btn ghost" id="qBack">← Ustawienia</button></div>`;
+  else if(qz.revealed) footer=`<div class="scorebar"><button class="btn" id="qNext">${qz.i+1>=N?"🏁 Zobacz wynik":"Następne pytanie →"}</button></div>`;
+  else footer=`<div class="scorebar"><span class="muted small">Wybierz odpowiedź…</span></div>`;
+  const counters=`<div class="qcounters">${qz.mode==="rogue"?`<span class="qlife">❤️ 1</span>`:""}<span class="qcorrect">✓ ${qz.correct}/${qz.answered}</span><span class="qstreak">${fireIcons(qz.streak)}</span></div>`;
+  pane.innerHTML=`<div class="qplay">
+    <div class="qbar"><div class="qprog">Pytanie <b>${qz.i+1}</b> / ${N}${qz.mode==="rogue"?' · <span class="roguetag">Roguelike 💀</span>':""}</div>${counters}</div>
+    <div class="qprogbar"><div class="qprogfill" style="width:${Math.round(qz.i/N*100)}%"></div></div>
+    <div class="q"><div class="qt">${esc(q.q)}</div>${opts}${qz.revealed&&q.explanation?`<div class="exp">💡 ${esc(q.explanation)}</div>`:""}</div>
+    ${footer}
+  </div>`;
+  if(!qz.revealed){
+    pane.querySelectorAll(".opt").forEach(o=>o.onclick=()=>{
+      qz.picked=+o.dataset.o; qz.revealed=true; qz.answered++;
+      if(qz.picked===q.correct){ qz.correct++; qz.streak++; if(qz.streak>qz.best) qz.best=qz.streak; }
+      else { qz.streak=0; if(qz.mode==="rogue") qz.over=true; }
+      renderQuizPlay(entry,pane);
+    });
+  } else {
+    const nb=document.getElementById("qNext"); if(nb) nb.onclick=()=>{ qz.i++; if(qz.i>=N) qz.done=true; else { qz.picked=null; qz.revealed=false; } renderQuizPlay(entry,pane); };
+    const rb=document.getElementById("qRestart"); if(rb) rb.onclick=()=>startQuiz(entry);
+    const bk=document.getElementById("qBack"); if(bk) bk.onclick=()=>{ state.qz=null; renderNote(); };
+  }
+}
+
+function exportNote(entry){
+  const data={type:"notatkiai-note",version:1,entry:entry};
+  const blob=new Blob([JSON.stringify(data)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=((entry.note&&entry.note.title)||"notatka").replace(/[^\wąćęłńóśżźĄĆĘŁŃÓŚŻŹ -]/g,"").trim().slice(0,60)+".notatka.json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
+function importNoteFile(file){
+  const fr=new FileReader();
+  fr.onload=()=>{
+    try{
+      const d=JSON.parse(fr.result);
+      const e=(d&&d.type==="notatkiai-note")?d.entry:null;
+      if(!e||!e.note) throw new Error("To nie jest plik notatki z tej aplikacji.");
+      e.id=uid(); e.created=e.created||Date.now();
+      state.notes.unshift(e); save(); renderLib(); openNote(e.id);
+    }catch(err){ alert("Import nieudany: "+err.message); }
+  };
+  fr.readAsText(file);
+}
+function printNote(){
+  document.querySelectorAll(".sec.collapsed").forEach(x=>x.classList.remove("collapsed"));
+  window.print();
+}
+function delNote(id){ if(!confirm("Usunąć tę notatkę?")) return; state.notes=state.notes.filter(n=>n.id!==id); removeNotePersist(id); if(state.currentId===id){ state.currentId=null; renderInput(); } else renderLib(); }
+
+document.getElementById("fileInput").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) handleFile(f); e.target.value=""; });
+document.getElementById("newBtn").onclick=()=>{ state.draft={title:"",text:"",fileName:"",images:[]}; renderInput(); };
+document.getElementById("importBtn").onclick=()=>document.getElementById("importInput").click();
+document.getElementById("importInput").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) importNoteFile(f); e.target.value=""; });
+
+/* ---------- Demo note ---------- */
+const SVG_FIGURE='<svg viewBox="0 0 360 240" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#1d2030" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="40" y="50" width="220" height="140"/><path d="M40 50 L260 190 M260 50 L40 190"/><path d="M150 50 L150 190 M40 120 L260 120"/><rect x="48" y="92" width="44" height="44"/><path d="M48 92 L92 136 M92 92 L48 136"/><path d="M260 70 L330 120 L260 170"/><circle cx="205" cy="150" r="16"/><circle cx="199" cy="148" r="2" fill="#1d2030"/><circle cx="211" cy="148" r="2" fill="#1d2030"/><path d="M150 70 L170 60 M165 95 L185 85 M180 120 L200 110"/><path d="M70 175 L100 175 M85 160 L85 190"/></g></svg>';
+const SVG_MAZE='<svg viewBox="0 0 360 240" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#1d2030" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M30 30 L30 70 M12 48 L52 46"/><path d="M70 58 L330 52 L326 208 L74 212 Z"/><path d="M74 60 L326 206 M326 56 L78 210"/><path d="M120 96 L138 86 M150 120 L168 110 M180 144 L198 134 M210 166 L228 156"/><circle cx="268" cy="132" r="30"/><circle cx="258" cy="126" r="2.5" fill="#1d2030"/><circle cx="278" cy="126" r="2.5" fill="#1d2030"/><path d="M256 146 L282 146"/></g></svg>';
+const DEMO={
+  id:"demo-neuro-1", created:Date.parse("2026-06-09"), source:"(przykład: Neuropsychologia – wprowadzenie)", quiz:null, images:[],
+  note:{
+    title:"Neuropsychologia kliniczna – wprowadzenie",
+    intro:"Notatka wprowadza w neuropsychologię kliniczną – dziedzinę badającą relacje między mózgiem a zachowaniem. Omawia zakres pracy i zadania neuropsychologa, etapy procesu diagnostycznego oraz zasady interpretacji wyników (analiza ilościowa i jakościowa). Całość ilustruje przypadek kliniczny różnicujący skutki urazu głowy od nadużywania alkoholu oraz przegląd rodzajów diagnozy i typowych trudności pacjentów z uszkodzeniem OUN.",
+    sections:[
+      {group:"Podstawy neuropsychologii",heading:"Przedmiot i dziedziny",question:"Czym zajmuje się neuropsychologia i z jakimi dziedzinami się łączy?",mainIdea:"Neuropsychologia bada związki między zachowaniem a mózgiem, łącząc wiedzę z kilku dziedzin medycyny i nauk o mózgu.",points:["**Przedmiot:** związki między funkcjonowaniem mózgu a zachowaniem człowieka.","**Dziedziny pokrewne:** neurologia i neurorehabilitacja, neurochirurgia, radiologia, psychiatria, neurobiologia.","**Etiologie zaburzeń:** naczyniowa (udary), urazowa, nowotworowa, zapalna, degeneracyjna (Alzheimer, Parkinson) oraz inne (np. zespół Korsakowa)."],examples:[],table:null,imageSlides:[]},
+      {group:"Podstawy neuropsychologii",heading:"Miejsce pracy i zadania",question:"Gdzie pracuje neuropsycholog i jakie ma zadania?",mainIdea:"Neuropsycholog kliniczny pracuje głównie na oddziałach neurologicznych i w poradniach, w zespole wielospecjalistycznym.",points:["**Miejsce pracy:** oddziały neurologii i rehabilitacji neurologicznej, poradnie psychologiczne.","**Współpraca:** z lekarzami, pielęgniarkami, neurologopedami, fizjoterapeutami i terapeutami zajęciowymi.","**Zadania:** diagnostyka funkcji poznawczych i wykonawczych, opinie, planowanie rehabilitacji, diagnoza różnicowa, pomoc psychologiczna, działania kompensacyjne."],examples:[],table:null,imageSlides:[]},
+      {group:"Podstawy neuropsychologii",heading:"Przedmiot oceny",question:"Co dokładnie ocenia neuropsycholog — uszkodzenia czy funkcjonowanie?",mainIdea:"Zadaniem neuropsychologa NIE jest ocena uszkodzeń mózgu, lecz opis funkcjonowania na podstawie zachowań pacjenta.",points:["**Funkcje poznawcze:** pamięć, uwaga, funkcje wzrokowo-przestrzenne i językowe.","**Funkcje wykonawcze:** hamowanie reakcji, planowanie, kontrola.","**Pozostałe obszary:** funkcjonowanie czuciowo-ruchowe i emocjonalne."],examples:[],table:null,imageSlides:[]},
+      {group:"Proces diagnostyczny",heading:"Etapy diagnozy",question:"Jak przebiega proces diagnozy neuropsychologicznej?",mainIdea:"Diagnoza to uporządkowany proces od zebrania wywiadu, przez hipotezy i dobór testów, aż po opinię.",points:["**Wywiad:** historia choroby i rozmowa z bliskimi; buduje też relację z pacjentem.","**Hipotezy robocze:** stawiane na podstawie literatury, wiedzy klinicznej, lokalizacji uszkodzenia i skierowania.","**Dobór narzędzi:** ze świadomością wad testów i ryzyka artefaktów.","**Dane i opinia:** zebranie danych ilościowych i jakościowych, weryfikacja hipotez, sporządzenie opinii."],examples:[],table:null,imageSlides:[]},
+      {group:"Proces diagnostyczny",heading:"Pułapki interpretacji",question:"Dlaczego pojedynczy wynik testu może mylić?",mainIdea:"Pojedynczy wynik nie wystarcza – ten sam błąd może mieć różne przyczyny, dlatego kluczowe są hipotezy.",points:["**Wynik ogólny:** może zaciemniać obraz – pacjent może mieć maksimum punktów mimo słabego wykonania.","**Niewykonanie próby:** nie oznacza uszkodzenia danej funkcji – np. trudność w teście Bentona może wynikać z problemów grafomotorycznych lub wzrokowo-przestrzennych, a nie z pamięci.","**Wieloczynnikowość:** jeden błąd może mieć przyczyny w kilku czynnikach naraz.","**Syndromy/zespoły:** ich znajomość ułatwia diagnozę różnicową (np. zespół rzekomoopuszkowy bywa mylony z depresją lub CHAD)."],examples:[],table:null,imageSlides:[]},
+      {group:"Proces diagnostyczny",heading:"Dane i opinia",question:"Czym różni się analiza ilościowa od jakościowej i co zawiera opinia?",mainIdea:"Liczby pozwalają porównywać wyniki, ale dopiero analiza jakościowa pokazuje, JAK pacjent wykonuje zadanie.",points:["**Dane ilościowe:** umożliwiają porównania z normami, lecz zaciemniają sposób wykonania.","**Dane jakościowe:** kolejność i czas wykonywania, komentarze i zachowanie pacjenta, podejście do testu i ocena własnych wytworów.","**Opinia psychologiczna:** zwięzła, treściwa, zrozumiała dla specjalisty; zawiera analizę jakościową, ilościową oraz wyniki liczbowe."],examples:[],table:null,imageSlides:[]},
+      {group:"Zastosowanie i przykłady",heading:"Przypadek kliniczny (Welsch)",question:"Jak odróżniono skutki urazu głowy od nadużywania alkoholu?",mainIdea:"Analiza testów pozwoliła odróżnić skutki urazu głowy od skutków nadużywania alkoholu mimo wysokiego IQ pacjenta.",points:["**Pacjent:** 45-latek po wypadku, nadużywa alkoholu; po urazie zmiany zachowania (mniej empatii, obcesowość, degradacja w pracy).","**WAIS-R:** wyniki wysokie i stałe (ogólny 124) – odzwierciedlają funkcjonowanie przedchorobowe.","**Testy:** labirynty – perseweracje; figura złożona – dobra kopia, ale konfabulacje przy odtwarzaniu; obniżona fluencja słowna; test pamięci poniżej normy.","**Wniosek:** potwierdzono uraz przednich struktur mózgu (nagłe zmiany osobowości, brak ciągów alkoholowych, drobne ogniska zanikowe w TK)."],examples:[{label:"Dlaczego nie alkohol",text:"Zmiany osobowości pojawiły się nagle i są charakterystyczne dla urazu, a przed wypadkiem – mimo nadużywania – nie zgłaszano takich trudności."}],table:null,imageSlides:[],figs:[{svg:SVG_FIGURE,cap:"Figura złożona do testu pamięci — schematyczny podgląd"},{svg:SVG_MAZE,cap:"Rysunek z testu pacjenta — schematyczny podgląd"}]},
+      {group:"Zastosowanie i przykłady",heading:"Rodzaje diagnozy",question:"Jakie są rodzaje diagnozy i która jest najważniejsza?",mainIdea:"Wyróżniamy cztery rodzaje diagnozy, z których funkcjonalna i ekologiczna mają największe znaczenie praktyczne.",points:["**Nozologiczna:** obserwacja postępu choroby, dynamiki i efektów leczenia/rehabilitacji.","**Lokalizacyjna:** mniej istotna ze względu na rozwój neuroobrazowania.","**Funkcjonalna/opisowa:** najważniejszy element diagnozy – opisuje stan i funkcjonowanie pacjenta.","**Ekologiczna:** pokazuje wpływ zaburzenia na codzienność; z punktu widzenia pacjenta najistotniejsza."],examples:[{label:"Realne zastosowanie",text:"Pacjentowi z zaburzeniami uwagi można zalecić zapisywanie najważniejszych wniosków w trakcie spotkania – oddziaływanie dopasowane do jego procesów poznawczych."}],table:{headers:["Rodzaj diagnozy","Do czego służy"],rows:[["Nozologiczna","Śledzenie postępu i dynamiki choroby"],["Lokalizacyjna","Wskazanie miejsca uszkodzenia (dziś mniej istotne)"],["Funkcjonalna/opisowa","Opis aktualnego funkcjonowania pacjenta"],["Ekologiczna","Wpływ zaburzenia na codzienne życie"]]},imageSlides:[]},
+      {group:"Zastosowanie i przykłady",heading:"Trudności przy uszkodzeniu OUN",question:"Jakie objawy są typowe dla pacjentów z uszkodzeniem OUN?",mainIdea:"Uszkodzenia ośrodkowego układu nerwowego dają szeroki wachlarz objawów poznawczych i emocjonalnych.",points:["**Uwaga i tempo:** osłabiona koncentracja, męczliwość, rozpraszalność, spowolnienie lub pobudzenie.","**Popędowość:** spektrum od apatii do impulsywności.","**Pamięć i myślenie:** zaburzenia pamięci, perseweracje, konfabulacje.","**Wgląd i emocje:** anozognozja (brak świadomości deficytu), labilność emocjonalna."],examples:[],table:null,imageSlides:[]}
+    ],
+    studyQuestions:[
+      "Czym zajmuje się neuropsychologia kliniczna i jakie są główne zadania neuropsychologa?",
+      "Dlaczego zadaniem neuropsychologa NIE jest ocena uszkodzeń mózgu, lecz ocena funkcjonowania poznawczego?",
+      "Jakie są kluczowe różnice między analizą ilościową a jakościową w procesie diagnostycznym?",
+      "Wymień i scharakteryzuj cztery rodzaje diagnozy neuropsychologicznej.",
+      "Na przykładzie przypadku wg Welscha wyjaśnij, jak odróżniono skutki urazu głowy od skutków nadużywania alkoholu.",
+      "Jakie objawy (np. perseweracje, konfabulacje, anozognozja) są typowe dla pacjentów z uszkodzeniem OUN?"
+    ]
+  }
+};
+DEMO.quiz=[
+  {q:"Neuropsychologia bada przede wszystkim związki pomiędzy:",options:["sercem a układem krążenia","zachowaniem a mózgiem","genami a środowiskiem","hormonami a nastrojem"],correct:1,explanation:"Neuropsychologia to dział nauki badający związki między zachowaniem a mózgiem."},
+  {q:"Które zadanie NIE należy do neuropsychologa?",options:["Ocena możliwych uszkodzeń mózgu","Diagnostyka funkcji poznawczych","Planowanie rehabilitacji funkcji poznawczych","Sporządzanie opinii psychologicznej"],correct:0,explanation:"Neuropsycholog ocenia funkcjonowanie poznawcze na podstawie zachowań, a nie same uszkodzenia mózgu."},
+  {q:"Trudność w wykonaniu testu Bentona może wynikać z:",options:["wyłącznie uszkodzenia pamięci","trudności grafomotorycznych lub wzrokowo-przestrzennych","zawsze uszkodzenia płata czołowego","wyłącznie braku motywacji"],correct:1,explanation:"Niewykonanie próby nie oznacza uszkodzenia badanej funkcji – stąd znaczenie hipotez."},
+  {q:"Diagnoza opisująca wpływ zaburzenia na codzienne funkcjonowanie pacjenta to diagnoza:",options:["nozologiczna","lokalizacyjna","ekologiczna","różnicowa"],correct:2,explanation:"Diagnoza ekologiczna wskazuje, jak zaburzenie wpływa na codzienność pacjenta."},
+  {q:"Analiza jakościowa w diagnostyce uwzględnia przede wszystkim:",options:["wynik ogólny w punktach","sposób wykonywania testu, czas, komentarze i zachowanie pacjenta","wyłącznie normy testowe","wyniki neuroobrazowania"],correct:1,explanation:"Analiza jakościowa bierze pod uwagę m.in. kolejność i czas wykonania, komentarze i zachowanie pacjenta."},
+  {q:"W przypadku klinicznym wg Welscha wysokie wyniki WAIS-R wskazywały głównie na:",options:["brak jakichkolwiek zaburzeń","funkcjonowanie przedchorobowe pacjenta","uszkodzenie na tle alkoholowym","symulowanie objawów"],correct:1,explanation:"Wysokie IQ odzwierciedlało funkcjonowanie sprzed urazu; deficyty ujawniły testy uczenia się i funkcji wykonawczych."},
+  {q:"Anozognozja to:",options:["nadmierna świadomość choroby","brak lub osłabienie wglądu w obecność własnych deficytów","zaburzenie ekspresji mowy","zaburzenie pamięci świeżej"],correct:1,explanation:"Anozognozja to brak świadomości/wglądu we własne deficyty – typowa przy uszkodzeniach OUN."},
+  {q:"Hipotezy diagnostyczne stawiamy między innymi na podstawie:",options:["wyłącznie intuicji badającego","literatury, wiedzy klinicznej i lokalizacji uszkodzenia","tylko życzeń pacjenta","liczby wykonanych testów"],correct:1,explanation:"Hipotezy robocze opierają się na literaturze, wiedzy klinicznej i lokalizacji uszkodzenia; często są w skierowaniu."}
+];
+
+if(window.pdfjsLib){ try{ pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; }catch(e){} }
+(function setupCfg(){
+  const m=document.getElementById("cfgModal"); if(!m) return;
+  const sel=document.getElementById("cfgModel");
+  sel.innerHTML=MODELS.map(x=>`<option value="${x.id}">${x.label}</option>`).join("");
+  function openM(){ const c=getCfg(); document.getElementById("cfgKey").value=c.apiKey; sel.value=c.model; document.getElementById("cfgStatus").textContent=""; m.classList.remove("hidden"); }
+  ["cfgBtn","cfgBtnTop"].forEach(id=>{ const b=document.getElementById(id); if(b) b.onclick=openM; });
+  document.getElementById("cfgClose").onclick=()=>m.classList.add("hidden");
+  m.addEventListener("click",e=>{ if(e.target===m) m.classList.add("hidden"); });
+  document.getElementById("cfgEye").onclick=()=>{ const k=document.getElementById("cfgKey"); k.type=k.type==="password"?"text":"password"; };
+  document.getElementById("cfgSave").onclick=()=>{ setCfg({apiKey:document.getElementById("cfgKey").value.trim(),model:sel.value}); document.getElementById("cfgStatus").innerHTML='<span style="color:var(--ok)">✔ Zapisano.</span>'; if(state.view==="input") renderInput(); };
+  document.getElementById("cfgTest").onclick=async()=>{
+    const st=document.getElementById("cfgStatus");
+    setCfg({apiKey:document.getElementById("cfgKey").value.trim(),model:sel.value});
+    st.textContent="⏳ Testuję połączenie…";
+    try{ const r=await ask("Odpowiedz dokładnie jednym słowem: OK",20); st.innerHTML='<span style="color:var(--ok)">✔ Działa! Odpowiedź modelu: '+esc((r||"").trim().slice(0,40))+'</span>'; }
+    catch(e){ st.innerHTML='<span style="color:var(--bad)">✖ '+esc(e.message)+'</span>'; }
+  };
+  m.classList.add("hidden");
+})();
+(async function init(){
+  await loadNotes();
+  const _di=state.notes.findIndex(n=>n.id===DEMO.id);
+  if(_di>=0) state.notes[_di]=DEMO; else state.notes.push(DEMO);
+  if(_idbOk) idbPut(DEMO).catch(()=>{}); else save();
+  state.notes.sort((a,b)=>(b.created||0)-(a.created||0));
+  setupChrome();
+  renderLib();
+  renderInput();
+})();
+</script>
