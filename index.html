@@ -256,6 +256,9 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .titledit{border:none;background:transparent;font-size:15px;margin-left:6px;opacity:.45;cursor:pointer;vertical-align:middle}
 .titledit:hover{opacity:1}
 @media(max-width:720px){.hello{margin-top:2px}.note h1{font-size:22px}}
+.msbar{height:8px;background:#e7e7e2;border-radius:6px;overflow:hidden}
+.msfill{height:100%;background:linear-gradient(90deg,var(--accent-2),var(--accent));transition:width .3s}
+.banklbl{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-bottom:6px}
 </style>
 
 <div class="app">
@@ -301,8 +304,10 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
     <p class="cfghint">Klucz API wygenerujesz na <b>platform.claude.com</b> → Settings → API keys. Klucz zapisuje się <b>wyłącznie w tej przeglądarce</b> — nie udostępniaj nikomu pliku ani urządzenia z wpisanym kluczem.</p>
     <label class="cfglbl">Klucz API</label>
     <div class="cfgrow"><input type="password" id="cfgKey" class="titlefield" placeholder="sk-ant-..." style="margin:0"><button class="toolbtn" id="cfgEye" title="Pokaż/ukryj">👁</button></div>
-    <label class="cfglbl">Model (notatki i quizy)</label>
+    <label class="cfglbl">Model notatek</label>
     <select id="cfgModel" class="modelsel" style="width:100%"></select>
+    <label class="cfglbl">Model quizów i banku pytań</label>
+    <select id="cfgModelQ" class="modelsel" style="width:100%"></select>
     <div class="row"><button class="btn" id="cfgSave">Zapisz</button><button class="btn ghost" id="cfgTest">Przetestuj połączenie</button><button class="btn ghost" id="cfgClose">Zamknij</button></div>
     <div id="cfgStatus" style="font-size:13px;margin-top:10px"></div>
   </div>
@@ -459,15 +464,15 @@ const MODELS=[
   {id:"claude-opus-4-8",label:"Opus 4.8 — najmocniejszy (~0,25$ / notatka)"}
 ];
 const CFG_KEY="notatkiai.cfg";
-function getCfg(){ try{ return Object.assign({apiKey:"",model:"claude-sonnet-4-6"},JSON.parse(localStorage.getItem(CFG_KEY)||"{}")); }catch(e){ return {apiKey:"",model:"claude-sonnet-4-6"}; } }
+function getCfg(){ try{ return Object.assign({apiKey:"",model:"claude-sonnet-4-6",quizModel:"claude-haiku-4-5-20251001"},JSON.parse(localStorage.getItem(CFG_KEY)||"{}")); }catch(e){ return {apiKey:"",model:"claude-sonnet-4-6",quizModel:"claude-haiku-4-5-20251001"}; } }
 function setCfg(c){ try{ localStorage.setItem(CFG_KEY,JSON.stringify(c)); }catch(e){} }
 function aiAvailable(){ return !!getCfg().apiKey || !!(window.cowork && typeof window.cowork.askClaude==="function"); }
-async function ask(prompt,maxTok){
+async function ask(prompt,maxTok,model){
   const c=getCfg();
   if(c.apiKey){
     let r;
     try{
-      r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":c.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:c.model||"claude-sonnet-4-6",max_tokens:maxTok||8000,messages:[{role:"user",content:prompt}]})});
+      r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":c.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:model||c.model||"claude-sonnet-4-6",max_tokens:maxTok||8000,messages:[{role:"user",content:prompt}]})});
     }catch(e){ throw new Error("Brak połączenia z API — sprawdź internet."); }
     if(!r.ok){
       let msg="HTTP "+r.status; try{ const e=await r.json(); msg=(e&&e.error&&e.error.message)||msg; }catch(_e){}
@@ -514,14 +519,14 @@ function repairJson(s){
   t=t.replace(/,\s*([}\]])/g,"$1"); // nadmiarowy przecinek
   return t;
 }
-async function askJson(prompt){
+async function askJson(prompt,model){
   let lastErr;
   for(let attempt=0;attempt<2;attempt++){
     const p=attempt===0?prompt:prompt+"\n\nUWAGA: poprzednia odpowiedź była niepoprawnym JSON. Zwróć teraz w 100% POPRAWNY JSON, z prawidłowymi ucieczkami znaków.";
-    const raw=await ask(p);
+    const raw=await ask(p,undefined,model);
     try{ return JSON.parse(repairJson(raw)); }catch(e){ lastErr=e; }
     try{ return extractJson(raw); }catch(e){ lastErr=e; }
-    try{ const fixed=await ask("Popraw poniższy tekst do w pełni poprawnego JSON. Zachowaj te same dane, zmień TYLKO składnię (ucieczki cudzysłowów i znaków specjalnych, przecinki, domknięcie nawiasów). Zwróć WYŁĄCZNIE JSON, bez markdown.\n\n"+String(raw).slice(0,22000)); return JSON.parse(repairJson(fixed)); }catch(e){ lastErr=e; }
+    try{ const fixed=await ask("Popraw poniższy tekst do w pełni poprawnego JSON. Zachowaj te same dane, zmień TYLKO składnię (ucieczki cudzysłowów i znaków specjalnych, przecinki, domknięcie nawiasów). Zwróć WYŁĄCZNIE JSON, bez markdown.\n\n"+String(raw).slice(0,22000),undefined,model); return JSON.parse(repairJson(fixed)); }catch(e){ lastErr=e; }
   }
   throw lastErr||new Error("AI zwróciło nieprawidłowy JSON.");
 }
@@ -631,21 +636,27 @@ function plural(n,a,b,c){ n=Math.abs(n); if(n===1) return a; const r=n%10,h=n%10
 function renderHome(){
   state.view="home"; state.currentId=null; state.qz=null; renderLib();
   const qn=state.notes.filter(n=>n.quiz&&n.quiz.length).length;
+  const bn=state.notes.filter(n=>n.bank&&n.bank.questions&&n.bank.questions.length).length;
   const today=new Date().toLocaleDateString("pl-PL",{weekday:"long",day:"numeric",month:"long"});
-  const isQ=state.libTab==="quizzes";
-  const list=isQ?state.notes.filter(n=>n.quiz&&n.quiz.length):state.notes;
+  const tab=state.libTab==="quizzes"?"quizzes":state.libTab==="banks"?"banks":"notes";
+  const list=tab==="quizzes"?state.notes.filter(n=>n.quiz&&n.quiz.length):tab==="banks"?state.notes.filter(n=>n.bank&&n.bank.questions&&n.bank.questions.length):state.notes;
   const cards=list.length?list.map(n=>{
     const sub=esc((n.note.intro||n.note.summary||"").slice(0,120));
-    const meta=isQ?`🧠 ${n.quiz.length} ${plural(n.quiz.length,"pytanie","pytania","pytań")} · ${new Date(n.created).toLocaleDateString("pl-PL")}`:`${new Date(n.created).toLocaleDateString("pl-PL")} · ${wordCount(n.note)} słów${n.quiz?" · 🧠 quiz":""}`;
-    return `<div class="hcard" data-${isQ?"hq":"hn"}="${n.id}"><div class="hbody"><h4>${esc(n.note.title||"Bez tytułu")}</h4><p>${sub}…</p><div class="hmeta">${meta}</div></div><span class="hchev">›</span></div>`;
-  }).join(""):`<div class="hempty">${isQ?"Brak quizów. Otwórz notatkę i kliknij „Stwórz quiz”.":"Brak notatek. Dodaj pierwszą przyciskiem na dole."}</div>`;
+    const bankPct=(n.bank&&n.bank.questions&&n.bank.questions.length)?Math.round(100*n.bank.questions.filter(x=>x.streak>=2).length/n.bank.questions.length):null;
+    let meta,attr;
+    if(tab==="quizzes"){ meta=`🧠 ${n.quiz.length} ${plural(n.quiz.length,"pytanie","pytania","pytań")} · ${new Date(n.created).toLocaleDateString("pl-PL")}`; attr=`data-hq="${n.id}"`; }
+    else if(tab==="banks"){ meta=`🏦 ${n.bank.questions.length} ${plural(n.bank.questions.length,"pytanie","pytania","pytań")} · 🎯 opanowano ${bankPct}% · ${new Date(n.created).toLocaleDateString("pl-PL")}`; attr=`data-hb="${n.id}"`; }
+    else { meta=[new Date(n.created).toLocaleDateString("pl-PL"),`${wordCount(n.note)} słów`,n.quiz?"🧠 quiz":"",bankPct!=null?`🏦 ${bankPct}%`:""].filter(Boolean).join(" · "); attr=`data-hn="${n.id}"`; }
+    return `<div class="hcard" ${attr}><div class="hbody"><h4>${esc(n.note.title||"Bez tytułu")}</h4><p>${sub}…</p><div class="hmeta">${meta}</div></div><span class="hchev">›</span></div>`;
+  }).join(""):`<div class="hempty">${tab==="quizzes"?"Brak quizów. Otwórz notatkę i kliknij „Stwórz quiz”.":tab==="banks"?"Brak banków pytań. Otwórz notatkę → zakładka 🏦 Bank → ✨ Zbuduj bank.":"Brak notatek. Dodaj pierwszą przyciskiem na dole."}</div>`;
   content.innerHTML=`
     <div class="home">
       <h1 class="hello">Witaj w kolonii</h1>
-      <div class="hellosub">${today} · ${state.notes.length} ${plural(state.notes.length,"notatka","notatki","notatek")} · ${qn} ${plural(qn,"quiz","quizy","quizów")}</div>
+      <div class="hellosub">${today} · ${state.notes.length} ${plural(state.notes.length,"notatka","notatki","notatek")} · ${qn} ${plural(qn,"quiz","quizy","quizów")} · ${bn} ${plural(bn,"bank","banki","banków")}</div>
       <div class="htabs">
-        <button class="htab${!isQ?" active":""}" data-ht="notes">📄 Notatki<span class="cnt">${state.notes.length}</span></button>
-        <button class="htab${isQ?" active":""}" data-ht="quizzes">🧠 Quizy<span class="cnt">${qn}</span></button>
+        <button class="htab${tab==="notes"?" active":""}" data-ht="notes">📄 Notatki<span class="cnt">${state.notes.length}</span></button>
+        <button class="htab${tab==="quizzes"?" active":""}" data-ht="quizzes">🧠 Quizy<span class="cnt">${qn}</span></button>
+        <button class="htab${tab==="banks"?" active":""}" data-ht="banks">🏦 Bank<span class="cnt">${bn}</span></button>
         <button class="htab" id="homeImport" title="Wczytaj notatkę z pliku eksportu">⬇ Import</button>
       </div>
       <div class="hlist">${cards}</div>
@@ -654,6 +665,7 @@ function renderHome(){
   content.querySelectorAll("[data-ht]").forEach(b=>b.onclick=()=>{ state.libTab=b.getAttribute("data-ht"); renderHome(); });
   content.querySelectorAll("[data-hn]").forEach(el=>el.onclick=()=>openNote(el.getAttribute("data-hn")));
   content.querySelectorAll("[data-hq]").forEach(el=>el.onclick=()=>{ state.currentId=el.getAttribute("data-hq"); state.qz=null; state.view="quiz"; renderNote(); });
+  content.querySelectorAll("[data-hb]").forEach(el=>el.onclick=()=>{ state.currentId=el.getAttribute("data-hb"); state.qz=null; state.view="bank"; renderNote(); });
   document.getElementById("homeNew").onclick=()=>{ state.draft={title:"",text:"",fileName:"",images:[]}; renderInput(); };
   document.getElementById("homeImport").onclick=()=>document.getElementById("importInput").click();
 }
@@ -726,11 +738,13 @@ function renderNote(){
     <div class="tabs">
       <button class="tab ${state.view==="note"?"active":""}" data-v="note">📄 Notatka</button>
       <button class="tab ${state.view==="quiz"?"active":""}" data-v="quiz">🧠 Quiz</button>
+      <button class="tab ${state.view==="bank"?"active":""}" data-v="bank">🏦 Bank</button>
     </div>
     <div id="pane"></div>`;
-  content.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{ state.view=t.dataset.v; if(state.view==="quiz") renderQuizPane(); else renderNote(); });
+  content.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{ state.view=t.dataset.v; renderNote(); });
   document.getElementById("backHome2").onclick=renderHome;
   if(state.view==="quiz"){ renderQuizPane(); return; }
+  if(state.view==="bank"){ renderBankPane(); return; }
   const pane=document.getElementById("pane");
 
   const imgs=entry.images||[]; const bySlide={};
@@ -798,6 +812,27 @@ function renderNote(){
 
 function fireIcons(n){ if(n<=0) return "🔥 ×0"; const cap=Math.min(n,6); return "🔥".repeat(cap)+(n>6?" ×"+n:""); }
 
+function renderBankPane(){
+  const entry=state.notes.find(n=>n.id===state.currentId); const pane=document.getElementById("pane"); if(!entry||!pane) return;
+  const b=(entry.bank&&entry.bank.questions&&entry.bank.questions.length)?entry.bank:null;
+  const bs=b?bankStats(entry):null;
+  pane.innerHTML=`
+    <div class="qsetup">
+      <div class="qbadge">🏦</div>
+      <h2 class="qtitle">Bank pytań</h2>
+      <p class="qsub">${b?`${bs.total} ${plural(bs.total,"pytanie","pytania","pytań")} · opanowano <b>${bs.mastered}</b> (${bs.pct}%)`:"Pytania pokrywające 100% materiału tej notatki (zwykle 40-70)."}</p>
+      ${b?`<div class="msbar" style="max-width:340px;margin:0 auto 18px"><div class="msfill" style="width:${bs.pct}%"></div></div>`:""}
+      <div class="row" style="justify-content:center">
+        ${b?`<button class="btn" id="msStart">▶ Ćwicz</button><button class="btn ghost" id="bankReset">↺ Resetuj postęp</button><button class="btn ghost" id="bankRegen">✨ Zbuduj od nowa</button>`:`<button class="btn" id="bankGen">✨ Zbuduj bank pytań</button>`}
+      </div>
+      <p class="qopthint" style="max-width:430px;margin:16px auto 0">${b?"Pytanie znika z rotacji po 2 poprawnych odpowiedziach z rzędu, a błędne wracają częściej. Budowa od nowa zastąpi bank wraz z postępem.":"Aplikacja przejdzie notatkę sekcja po sekcji i ułoży pytania sprawdzające każdy fakt — tak, by dało się opanować 100% materiału."}</p>
+      ${!aiAvailable()?`<div class="banner warn" style="margin-top:14px;text-align:left">⚠️ Aby budować bank, wpisz klucz API w <b>⚙ Ustawienia AI</b>.</div>`:""}
+    </div>`;
+  const bg=document.getElementById("bankGen"); if(bg) bg.onclick=()=>generateBank(entry);
+  const msb=document.getElementById("msStart"); if(msb) msb.onclick=()=>startMastery(entry);
+  const br=document.getElementById("bankReset"); if(br) br.onclick=()=>{ if(confirm("Wyzerować postęp banku pytań?")){ entry.bank.questions.forEach(x=>{x.streak=0;x.wrong=0;x.seen=0;}); save(); renderBankPane(); } };
+  const brg=document.getElementById("bankRegen"); if(brg) brg.onclick=()=>{ if(confirm("Zbudować bank od nowa? Obecne pytania i postęp zostaną zastąpione.")) generateBank(entry); };
+}
 function renderQuizPane(){
   const entry=state.notes.find(n=>n.id===state.currentId); const pane=document.getElementById("pane");
   if(state.qz && state.qz.active) renderQuizPlay(entry,pane); else renderQuizSetup(entry,pane);
@@ -824,6 +859,7 @@ function renderQuizSetup(entry,pane){
         <button class="btn" id="qGen">✨ Generuj <span id="qGenN">${cfg.count}</span> pytań</button>
         ${has?`<button class="btn ghost" id="qPlay">▶ Zagraj (${entry.quiz.length})</button>`:""}
       </div>
+      
       ${!aiAvailable()?`<div class="banner warn" style="margin-top:14px;text-align:left">⚠️ Aby generować quizy, wpisz klucz API w <b>⚙ Ustawienia AI</b>.</div>`:""}
     </div>`;
   const cEl=document.getElementById("qCount");
@@ -833,12 +869,87 @@ function renderQuizSetup(entry,pane){
   const pb=document.getElementById("qPlay"); if(pb) pb.onclick=()=>startQuiz(entry);
 }
 
+function sectionText(sec){
+  let t=(sec.group?sec.group+" / ":"")+(sec.heading||"")+"\n"+(sec.lead||sec.mainIdea||"")+"\n"+(sec.points||[]).join("\n");
+  (sec.examples||[]).forEach(e=>t+="\n"+(e.label||"")+": "+(e.text||""));
+  if(sec.table){ t+="\n"+(sec.table.headers||[]).join(" | "); (sec.table.rows||[]).forEach(r=>t+="\n"+(r||[]).join(" | ")); }
+  return t;
+}
+const BANK_PROMPT=(title,secTxt)=>`Tworzysz wyczerpujący bank pytań do nauki PO POLSKU z fragmentu notatki „${title}".
+ZADANIE: ułóż tyle pytań jednokrotnego wyboru (4 odpowiedzi, dokładnie jedna poprawna), ile potrzeba, aby sprawdzić KAŻDY fakt, definicję, funkcję, przykład i rozróżnienie z tego fragmentu — zwykle 3-8 pytań. Osoba, która odpowie poprawnie na wszystkie, ma znać 100% treści fragmentu. Nie układaj dwóch pytań o ten sam fakt.
+ZASADY: dystraktory wiarygodne (pojęcia z tego materiału, które uczący się myli), bez „wszystkie powyższe"/„żadne z powyższych", 4 odpowiedzi podobnej długości i formy, przeczenia tylko wyjątkowo i wielkimi literami (NIE), "explanation" 1-2 zdania. W tekstach nie używaj prostego cudzysłowu ".
+Zwróć WYŁĄCZNIE poprawny JSON (bez markdown): {"questions":[{"q":string,"options":string[4],"correct":number(0-3),"explanation":string}]}
+FRAGMENT NOTATKI:
+"""${secTxt.slice(0,9000)}"""`;
+
+async function generateBank(entry){
+  if(!aiAvailable()){ alert("Najpierw wpisz klucz API w ⚙ Ustawienia AI."); return; }
+  const secs=(entry.note.sections||[]).filter(x=>(x.points&&x.points.length)||x.lead||x.mainIdea);
+  if(!secs.length){ alert("Ta notatka nie ma sekcji do przepytania."); return; }
+  const pane=document.getElementById("pane"); if(!pane) return;
+  const qm=getCfg().quizModel; const all=[]; let failed=0;
+  for(let i=0;i<secs.length;i++){
+    pane.innerHTML=`<div class="center"><div><div class="spinner"></div><h3 style="color:var(--ink);margin:0 0 6px">Buduję bank pytań…</h3><div class="steps">Sekcja ${i+1} z ${secs.length}: ${esc(secs[i].heading||"")}<br>pytań w banku: ${all.length}</div></div></div>`;
+    try{
+      const data=await askJson(BANK_PROMPT(entry.note.title||"",sectionText(secs[i])),qm);
+      (data.questions||[]).forEach(qq=>{ if(qq&&qq.q&&qq.options&&qq.options.length===4&&qq.correct>=0&&qq.correct<=3) all.push({q:qq.q,options:qq.options,correct:qq.correct,explanation:qq.explanation||"",sec:secs[i].heading||"",streak:0,wrong:0,seen:0}); });
+    }catch(e){ failed++; }
+  }
+  if(!all.length){ alert("Nie udało się zbudować banku pytań — spróbuj ponownie."); state.view="bank"; renderNote(); return; }
+  entry.bank={questions:all,created:Date.now()}; save();
+  state.view="bank"; renderNote();
+  if(failed) setTimeout(()=>alert("Uwaga: "+failed+" sekcji nie udało się przepytać — możesz zbudować bank od nowa."),100);
+}
+function bankStats(entry){ const qs=entry.bank.questions; const m=qs.filter(x=>x.streak>=2).length; return {total:qs.length,mastered:m,pct:qs.length?Math.round(100*m/qs.length):0}; }
+function startMastery(entry){
+  const pool=entry.bank.questions.map((qq,i)=>({qq,i})).filter(x=>x.qq.streak<2);
+  if(!pool.length){
+    const pane=document.getElementById("pane");
+    pane.innerHTML=`<div class="qsetup"><div class="qbadge big">🏆</div><h2 class="qtitle">Materiał opanowany!</h2><p class="qsub">Odpowiedziałeś poprawnie (2x z rzędu) na wszystkie ${entry.bank.questions.length} pytań z tej notatki.</p><div class="row" style="justify-content:center"><button class="btn ghost" id="msReset0">↺ Resetuj postęp i ćwicz od nowa</button><button class="btn ghost" id="msBack0">↩ Wróć</button></div></div>`;
+    document.getElementById("msReset0").onclick=()=>{ entry.bank.questions.forEach(x=>{x.streak=0;x.wrong=0;x.seen=0;}); save(); startMastery(entry); };
+    document.getElementById("msBack0").onclick=()=>{ state.view="bank"; renderNote(); };
+    return;
+  }
+  pool.sort((a,b)=>(b.qq.wrong-a.qq.wrong)||(a.qq.seen-b.qq.seen)||(Math.random()-.5));
+  state.ms={idx:pool.slice(0,10).map(x=>x.i),pos:0,picked:null,revealed:false,ok:0};
+  renderMastery(entry);
+}
+function renderMastery(entry){
+  const pane=document.getElementById("pane"); const ms=state.ms; const st=bankStats(entry);
+  if(ms.pos>=ms.idx.length){
+    pane.innerHTML=`<div class="qsetup"><div class="qbadge big">🎯</div><h2 class="qtitle">Runda zakończona</h2><p class="qsub">Poprawnie: <b>${ms.ok}/${ms.idx.length}</b> · opanowano łącznie <b>${st.mastered}/${st.total}</b> pytań (${st.pct}%)</p><div class="msbar" style="max-width:340px;margin:0 auto 18px"><div class="msfill" style="width:${st.pct}%"></div></div><div class="row" style="justify-content:center"><button class="btn" id="msNext">▶ Kolejna runda</button><button class="btn ghost" id="msBack">↩ Wróć</button></div></div>`;
+    document.getElementById("msNext").onclick=()=>startMastery(entry);
+    document.getElementById("msBack").onclick=()=>{ state.view="bank"; renderNote(); };
+    return;
+  }
+  const qq=entry.bank.questions[ms.idx[ms.pos]];
+  pane.innerHTML=`
+    <div style="margin-bottom:14px">
+      <div class="banklbl"><span>Pytanie ${ms.pos+1}/${ms.idx.length} · ${esc(qq.sec)}</span><span>🎯 ${st.pct}% opanowane</span></div>
+      <div class="msbar"><div class="msfill" style="width:${st.pct}%"></div></div>
+    </div>
+    <div class="q"><div class="qt">${esc(qq.q)}</div>
+      ${qq.options.map((o,oi)=>{ let cls="opt"; if(ms.revealed){ if(oi===qq.correct) cls+=" correct"; else if(oi===ms.picked) cls+=" wrong"; } else if(ms.picked===oi) cls+=" sel"; return `<div class="${cls}" data-oi="${oi}"><span class="mk">${ms.revealed&&oi===qq.correct?"✓":ms.revealed&&oi===ms.picked?"✗":""}</span><span class="ot">${esc(o)}</span></div>`; }).join("")}
+      ${ms.revealed&&qq.explanation?`<div class="exp">${esc(qq.explanation)}</div>`:""}
+    </div>
+    <div class="row"><button class="btn" id="msCheck" ${ms.picked==null?"disabled":""}>${ms.revealed?"Dalej →":"Sprawdź"}</button><button class="btn ghost" id="msQuit">Zakończ rundę</button></div>`;
+  if(!ms.revealed) pane.querySelectorAll(".opt").forEach(el=>el.onclick=()=>{ ms.picked=+el.getAttribute("data-oi"); renderMastery(entry); });
+  document.getElementById("msCheck").onclick=()=>{
+    if(!ms.revealed){
+      ms.revealed=true; qq.seen++;
+      if(ms.picked===qq.correct){ qq.streak++; ms.ok++; } else { qq.streak=0; qq.wrong++; }
+      save(); renderMastery(entry);
+    } else { ms.pos++; ms.picked=null; ms.revealed=false; renderMastery(entry); }
+  };
+  document.getElementById("msQuit").onclick=()=>{ state.view="bank"; renderNote(); };
+}
+
 async function requestQuiz(count){
   const entry=state.notes.find(n=>n.id===state.currentId); if(!entry) return;
   if(!aiAvailable()){ alert("Najpierw wpisz klucz API w ⚙ Ustawienia AI."); return; }
   const t=loadingView("Układam quiz…",["Przeglądam notatkę","Wybieram kluczowe fakty","Tworzę pytania i odpowiedzi","Dodaję uzasadnienia"]);
   try{
-    const data=await askJson(QUIZ_PROMPT(entry.note,count));
+    const data=await askJson(QUIZ_PROMPT(entry.note,count),getCfg().quizModel);
     const qs=(data.questions||[]).filter(q=>q&&q.options&&q.options.length>=2).slice(0,count);
     if(!qs.length) throw new Error("Quiz pusty.");
     entry.quiz=qs; save(); clearInterval(t); startQuiz(entry);
@@ -967,17 +1078,18 @@ DEMO.quiz=[
 if(window.pdfjsLib){ try{ pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; }catch(e){} }
 (function setupCfg(){
   const m=document.getElementById("cfgModal"); if(!m) return;
-  const sel=document.getElementById("cfgModel");
+  const sel=document.getElementById("cfgModel"), selQ=document.getElementById("cfgModelQ");
   sel.innerHTML=MODELS.map(x=>`<option value="${x.id}">${x.label}</option>`).join("");
-  function openM(){ const c=getCfg(); document.getElementById("cfgKey").value=c.apiKey; sel.value=c.model; document.getElementById("cfgStatus").textContent=""; m.classList.remove("hidden"); }
+  selQ.innerHTML=MODELS.map(x=>`<option value="${x.id}">${x.label.replace(" / notatka","")}</option>`).join("");
+  function openM(){ const c=getCfg(); document.getElementById("cfgKey").value=c.apiKey; sel.value=c.model; selQ.value=c.quizModel; document.getElementById("cfgStatus").textContent=""; m.classList.remove("hidden"); }
   ["cfgBtn","cfgBtnTop"].forEach(id=>{ const b=document.getElementById(id); if(b) b.onclick=openM; });
   document.getElementById("cfgClose").onclick=()=>m.classList.add("hidden");
   m.addEventListener("click",e=>{ if(e.target===m) m.classList.add("hidden"); });
   document.getElementById("cfgEye").onclick=()=>{ const k=document.getElementById("cfgKey"); k.type=k.type==="password"?"text":"password"; };
-  document.getElementById("cfgSave").onclick=()=>{ setCfg({apiKey:document.getElementById("cfgKey").value.trim(),model:sel.value}); document.getElementById("cfgStatus").innerHTML='<span style="color:var(--ok)">✔ Zapisano.</span>'; if(state.view==="input") renderInput(); };
+  document.getElementById("cfgSave").onclick=()=>{ setCfg({apiKey:document.getElementById("cfgKey").value.trim(),model:sel.value,quizModel:selQ.value}); document.getElementById("cfgStatus").innerHTML='<span style="color:var(--ok)">✔ Zapisano.</span>'; if(state.view==="input") renderInput(); };
   document.getElementById("cfgTest").onclick=async()=>{
     const st=document.getElementById("cfgStatus");
-    setCfg({apiKey:document.getElementById("cfgKey").value.trim(),model:sel.value});
+    setCfg({apiKey:document.getElementById("cfgKey").value.trim(),model:sel.value,quizModel:selQ.value});
     st.textContent="⏳ Testuję połączenie…";
     try{ const r=await ask("Odpowiedz dokładnie jednym słowem: OK",20); st.innerHTML='<span style="color:var(--ok)">✔ Działa! Odpowiedź modelu: '+esc((r||"").trim().slice(0,40))+'</span>'; }
     catch(e){ st.innerHTML='<span style="color:var(--bad)">✖ '+esc(e.message)+'</span>'; }
