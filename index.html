@@ -18,8 +18,8 @@
 html,body{margin:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;font-size:16px}
 button{font-family:inherit;cursor:pointer}
-.app{display:grid;grid-template-columns:268px 1fr;min-height:100vh}
-.side{border-right:1px solid var(--border);background:var(--panel);padding:18px 14px;display:flex;flex-direction:column;gap:14px}
+.app{display:block;min-height:100vh}
+.side{display:none}
 .brand{display:flex;align-items:center;gap:10px;padding:2px 4px}
 .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:#fff;font-weight:800;font-size:17px;box-shadow:0 4px 12px rgba(52,89,74,.35)}
 .brand b{font-size:16px;letter-spacing:.2px}
@@ -196,7 +196,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .note.readable .qhead{font-size:18px}
 .note.readable .pts li{margin:10px 0;line-height:1.7}
 .note.readable .mainidea{line-height:1.75}
-.topbar{display:none;align-items:center;justify-content:space-between;gap:10px;margin:0 0 16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 auto 16px;padding-bottom:12px;border-bottom:1px solid var(--border);max-width:800px}
 .tb-brand{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700}
 .logo.sm{width:28px;height:28px;font-size:14px;border-radius:8px;box-shadow:0 3px 8px rgba(52,89,74,.3)}
 .tb-actions{display:flex;gap:8px;flex-wrap:wrap}
@@ -211,7 +211,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .drawer-head{display:flex;align-items:center;justify-content:space-between}
 .drawer-head b{font-size:16px}
 .drawer-x{border:none;background:transparent;font-size:22px;color:var(--muted);cursor:pointer;line-height:1}
-@media(max-width:720px){.app{grid-template-columns:1fr}.side{display:none}.main{padding:18px}.topbar{display:flex}}
+@media(max-width:720px){.main{padding:18px}}
 .modal{position:fixed;inset:0;background:rgba(18,18,22,.45);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px}
 .modal-card{background:#fff;border-radius:18px;padding:22px 24px;max-width:500px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)}
 .modal-card h3{margin:0 0 8px}
@@ -276,9 +276,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
     <div class="topbar">
       <div class="tb-brand"><div class="logo sm">N</div><b>NotatkiAI</b></div>
       <div class="tb-actions">
-        <button class="tb-btn" id="mnBtn">☰ Moje notatki <span class="cntpill" id="mnCount">0</span></button>
-        <button class="tb-btn" id="cfgBtnTop" title="Ustawienia AI">⚙</button>
-        <button class="tb-btn primary" id="mnNew">＋ Nowa</button>
+        <button class="tb-btn" id="cfgBtnTop" title="Ustawienia AI">⚙ Ustawienia</button>
       </div>
     </div>
     <div class="wrap" id="content"></div>
@@ -648,6 +646,7 @@ function renderHome(){
       <div class="htabs">
         <button class="htab${!isQ?" active":""}" data-ht="notes">📄 Notatki<span class="cnt">${state.notes.length}</span></button>
         <button class="htab${isQ?" active":""}" data-ht="quizzes">🧠 Quizy<span class="cnt">${qn}</span></button>
+        <button class="htab" id="homeImport" title="Wczytaj notatkę z pliku eksportu">⬇ Import</button>
       </div>
       <div class="hlist">${cards}</div>
       <div class="haddwrap"><button class="hadd" id="homeNew">＋ Dodaj notatkę</button></div>
@@ -656,6 +655,7 @@ function renderHome(){
   content.querySelectorAll("[data-hn]").forEach(el=>el.onclick=()=>openNote(el.getAttribute("data-hn")));
   content.querySelectorAll("[data-hq]").forEach(el=>el.onclick=()=>{ state.currentId=el.getAttribute("data-hq"); state.qz=null; state.view="quiz"; renderNote(); });
   document.getElementById("homeNew").onclick=()=>{ state.draft={title:"",text:"",fileName:"",images:[]}; renderInput(); };
+  document.getElementById("homeImport").onclick=()=>document.getElementById("importInput").click();
 }
 
 function renderInput(){
