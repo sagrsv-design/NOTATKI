@@ -16,7 +16,8 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;font-size:16px}
+html{background:var(--bg)}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,system-ui,sans-serif;background:radial-gradient(900px 520px at 8% -8%,rgba(150,145,128,.08),transparent 60%),radial-gradient(760px 460px at 108% 0%,rgba(125,135,150,.07),transparent 55%),radial-gradient(720px 620px at 55% 122%,rgba(140,180,160,.08),transparent 60%) var(--bg);min-height:100vh;min-height:100dvh;color:var(--ink);line-height:1.55;font-size:16px}
 button{font-family:inherit;cursor:pointer}
 .app{display:block;min-height:100vh}
 .side{display:none}
@@ -36,7 +37,7 @@ button{font-family:inherit;cursor:pointer}
 .item .del{position:absolute;top:8px;right:8px;border:none;background:transparent;color:#b9b9b5;font-size:15px;line-height:1;padding:2px;border-radius:6px}
 .item .del:hover{color:var(--bad);background:var(--bad-soft)}
 .side-foot{margin-top:auto;font-size:11px;color:var(--muted);padding:0 6px;border-top:1px solid var(--border);padding-top:10px}
-.main{padding:26px 30px;overflow:auto;max-height:100vh;background:radial-gradient(900px 520px at 8% -8%,rgba(150,145,128,.08),transparent 60%),radial-gradient(760px 460px at 108% 0%,rgba(125,135,150,.07),transparent 55%),radial-gradient(720px 620px at 55% 122%,rgba(140,180,160,.08),transparent 60%)}
+.main{padding:26px 30px}
 .wrap{max-width:800px;margin:0 auto}
 .hidden{display:none!important}
 .drop{position:relative;border:1.5px dashed rgba(150,145,128,.4);border-radius:22px;padding:40px 26px;text-align:center;transition:.18s;background:linear-gradient(135deg,rgba(255,255,255,.62),rgba(255,255,255,.4));-webkit-backdrop-filter:blur(16px) saturate(170%);backdrop-filter:blur(16px) saturate(170%);box-shadow:0 14px 44px rgba(35,35,42,.09),inset 0 1px 0 rgba(255,255,255,.85)}
@@ -259,6 +260,19 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .msbar{height:8px;background:#e7e7e2;border-radius:6px;overflow:hidden}
 .msfill{height:100%;background:linear-gradient(90deg,var(--accent-2),var(--accent));transition:width .3s}
 .banklbl{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+@media print{
+  *{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;box-shadow:none!important;transition:none!important;animation:none!important}
+  html,body,.main,.app{background:#fff!important}
+  .titledit,.haddwrap,.backbtn,.lbctrl,.lightbox,.hadd{display:none!important}
+  .ghhl,.sublabel{background:none!important;padding:0!important;border-bottom:2.5px solid #9bbfae;border-radius:0}
+  .mainidea b{background:none!important;padding:0!important}
+  .intro{background:#fff!important;border-left:3px solid #c9d8cf}
+  .ex{background:#fff!important;border-left:3px solid #9bbfae}
+  .sec{background:#fff!important;border:1px solid #d8d8d3!important;border-radius:10px}
+  .sechead:hover{background:none}
+  .tbl th{background:#f0f0ec!important;color:#222!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .note h1{font-size:22pt}
+}
 </style>
 
 <div class="app">
@@ -279,7 +293,9 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
     <div class="topbar">
       <div class="tb-brand"><div class="logo sm">N</div><b>NotatkiAI</b></div>
       <div class="tb-actions">
-        <button class="tb-btn" id="cfgBtnTop" title="Ustawienia AI">⚙ Ustawienia</button>
+        <button class="tb-btn" id="syncPill" title="Synchronizuj z chmurą GitHub">☁️</button>
+        <button class="tb-btn" id="tbImport" title="Importuj notatkę z pliku">⬇</button>
+        <button class="tb-btn" id="cfgBtnTop" title="Ustawienia AI">⚙</button>
       </div>
     </div>
     <div class="wrap" id="content"></div>
@@ -551,7 +567,7 @@ async function ghReq(path,method,body){
 }
 async function ghErr(r){ try{ const j=await r.json(); return j.message||("HTTP "+r.status); }catch(e){ return "HTTP "+r.status; } }
 function setSyncMsg(t,reset){
-  const el=document.getElementById("syncPill"); if(el){ el.textContent=t; if(reset) setTimeout(()=>{ const e2=document.getElementById("syncPill"); if(e2) e2.textContent="☁️ Sync"; },5000); }
+  const el=document.getElementById("syncPill"); if(el){ el.textContent=t; if(reset) setTimeout(()=>{ const e2=document.getElementById("syncPill"); if(e2) e2.textContent="☁️"; },5000); }
   const st=document.getElementById("cfgSyncStatus"); if(st) st.textContent=t;
 }
 function syncSoon(){ if(!syncConfigured()) return; clearTimeout(syncTimer); syncTimer=setTimeout(()=>syncNow(false),4000); }
@@ -713,6 +729,8 @@ function setupChrome(){
   const nw=()=>{ state.draft={title:"",text:"",fileName:"",images:[]}; closeDrawer(); renderInput(); };
   const a=document.getElementById("mnNew"); if(a) a.onclick=nw;
   const b=document.getElementById("drawerNew"); if(b) b.onclick=nw;
+  const sy=document.getElementById("syncPill"); if(sy) sy.onclick=()=>{ if(!syncConfigured()){ alert("Najpierw skonfiguruj chmurę: ⚙ Ustawienia → ☁️ Chmura GitHub."); document.getElementById("cfgBtnTop").click(); } else syncNow(true); };
+  const ti=document.getElementById("tbImport"); if(ti) ti.onclick=()=>document.getElementById("importInput").click();
 }
 
 function plural(n,a,b,c){ n=Math.abs(n); if(n===1) return a; const r=n%10,h=n%100; return (r>=2&&r<=4&&(h<12||h>14))?b:c; }
@@ -740,8 +758,7 @@ function renderHome(){
         <button class="htab${tab==="notes"?" active":""}" data-ht="notes">📄 Notatki<span class="cnt">${state.notes.length}</span></button>
         <button class="htab${tab==="quizzes"?" active":""}" data-ht="quizzes">🧠 Quizy<span class="cnt">${qn}</span></button>
         <button class="htab${tab==="banks"?" active":""}" data-ht="banks">🏦 Bank<span class="cnt">${bn}</span></button>
-        <button class="htab" id="homeImport" title="Wczytaj notatkę z pliku eksportu">⬇ Import</button>
-        ${syncConfigured()?`<button class="htab" id="syncPill" title="Synchronizuj z chmurą GitHub">☁️ Sync</button>`:""}
+
       </div>
       <div class="hlist">${cards}</div>
       <div class="haddwrap"><button class="hadd" id="homeNew">＋ Dodaj notatkę</button></div>
@@ -751,8 +768,6 @@ function renderHome(){
   content.querySelectorAll("[data-hq]").forEach(el=>el.onclick=()=>{ state.currentId=el.getAttribute("data-hq"); state.qz=null; state.view="quiz"; renderNote(); });
   content.querySelectorAll("[data-hb]").forEach(el=>el.onclick=()=>{ state.currentId=el.getAttribute("data-hb"); state.qz=null; state.view="bank"; renderNote(); });
   document.getElementById("homeNew").onclick=()=>{ state.draft={title:"",text:"",fileName:"",images:[]}; renderInput(); };
-  document.getElementById("homeImport").onclick=()=>document.getElementById("importInput").click();
-  const sp=document.getElementById("syncPill"); if(sp) sp.onclick=()=>syncNow(true);
 }
 
 function renderInput(){
