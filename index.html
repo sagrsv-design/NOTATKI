@@ -256,7 +256,13 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .hadd:hover{transform:translateY(-1px);box-shadow:0 18px 40px rgba(40,70,58,.42)}
 .titledit{border:none;background:transparent;font-size:15px;margin-left:6px;opacity:.45;cursor:pointer;vertical-align:middle}
 .titledit:hover{opacity:1}
-@media(max-width:720px){.hello{margin-top:2px}.note h1{font-size:22px}}
+@media(max-width:720px){
+  .hello{margin-top:2px}
+  .note h1{font-size:22px}
+  .htabs{flex-wrap:nowrap;gap:6px}
+  .htab{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:10px 6px;font-size:12.5px;white-space:nowrap;min-width:0}
+  .htab .cnt{margin-left:2px;font-size:11px}
+}
 .msbar{height:8px;background:#e7e7e2;border-radius:6px;overflow:hidden}
 .msfill{height:100%;background:linear-gradient(90deg,var(--accent-2),var(--accent));transition:width .3s}
 .banklbl{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-bottom:6px}
@@ -567,7 +573,13 @@ async function ghReq(path,method,body){
 }
 async function ghErr(r){ try{ const j=await r.json(); return j.message||("HTTP "+r.status); }catch(e){ return "HTTP "+r.status; } }
 function setSyncMsg(t,reset){
-  const el=document.getElementById("syncPill"); if(el){ el.textContent=t; if(reset) setTimeout(()=>{ const e2=document.getElementById("syncPill"); if(e2) e2.textContent="☁️"; },5000); }
+  const el=document.getElementById("syncPill");
+  if(el){
+    let icon="☁️";
+    if(t.indexOf("Błąd")>=0) icon="☁️ ✗"; else if(t.indexOf("Zsynchronizowano")>=0) icon="☁️ ✓"; else if(t.indexOf("Synchronizuję")>=0) icon="☁️ …";
+    el.textContent=icon; el.title=t;
+    if(reset) setTimeout(()=>{ const e2=document.getElementById("syncPill"); if(e2){ e2.textContent="☁️"; e2.title="Synchronizuj z chmurą GitHub"; } },5000);
+  }
   const st=document.getElementById("cfgSyncStatus"); if(st) st.textContent=t;
 }
 function syncSoon(){ if(!syncConfigured()) return; clearTimeout(syncTimer); syncTimer=setTimeout(()=>syncNow(false),4000); }
