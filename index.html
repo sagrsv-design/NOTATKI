@@ -1017,7 +1017,13 @@ async function onGenerate(){
   const imgSlides=[...new Set((f.images||[]).map(im=>im.slide).filter(x=>x!=null))].sort((a,b)=>a-b);
   const t=loadingView("Tworzę notatkę…",["Analizuję materiał wykładu","Wyłapuję kluczowe pojęcia","Dopasowuję zdjęcia do sekcji","Porządkuję strukturę notatki"]);
   try{
-    const note=await askJson(NOTE_PROMPT(src,imgSlides));
+    const _prov=getCfg().provider;
+    const _hi=Math.max(450,Math.min(2600,Math.round(src.length/28)));
+    const _lo=Math.round(_hi*0.7);
+    const _boost=(_prov==="gemini"||_prov==="openrouter")?`
+
+KLUCZOWE — OBJĘTOŚĆ I DOKŁADNOŚĆ: nie skracaj notatki. Punkt sekcji to 1-2 pełne zdania wyjaśnienia (nie równoważniki zdań); dawaj 4-7 punktów tam, gdzie materiał ma na to pokrycie — sekcji ubogich w treść nie rozdmuchuj, tylko łącz z pokrewnymi. Notatka ma wystarczyć do nauki BEZ wracania do slajdów po szczegóły. Orientacyjna długość dla TEGO materiału: ${_lo}-${_hi} słów — objętość ma pochodzić z dokładności opracowania źródła, NIGDY z lania wody, powtórzeń ani dopisywania treści spoza materiału.`:"";
+    const note=await askJson(NOTE_PROMPT(src,imgSlides)+_boost);
     if(f.title) note.title=f.title;
     note.sections=note.sections||[]; note.studyQuestions=note.studyQuestions||[];
     const entry={id:uid(),created:Date.now(),updated:Date.now(),source:src.slice(0,60000),note,quiz:null,images:(f.images||[]).slice(0,20)};
