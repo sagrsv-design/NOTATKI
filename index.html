@@ -561,9 +561,12 @@ const MODELS=[
   {id:"claude-opus-4-8",label:"Opus 4.8 — najmocniejszy (~0,25$ / notatka)"}
 ];
 const GMODELS=[
-  {id:"gemini-2.5-pro",label:"Gemini 2.5 Pro — najlepszy (mały limit dzienny)"},
-  {id:"gemini-2.5-flash",label:"Gemini 2.5 Flash — polecany darmowy"},
-  {id:"gemini-2.5-flash-lite",label:"Gemini Flash-Lite — najszybszy, duży limit"}
+  {id:"gemini-3.5-flash",label:"Gemini 3.5 Flash — najnowszy (taryfa płatna)"},
+  {id:"gemini-3.1-pro-preview",label:"Gemini 3.1 Pro — najmocniejszy (taryfa płatna)"},
+  {id:"gemini-3.1-flash-lite",label:"Gemini 3.1 Flash-Lite — szybki i tani"},
+  {id:"gemini-2.5-pro",label:"Gemini 2.5 Pro — mocny klasyk"},
+  {id:"gemini-2.5-flash",label:"Gemini 2.5 Flash — polecany (darmowy bez karty)"},
+  {id:"gemini-2.5-flash-lite",label:"Gemini 2.5 Flash-Lite — najszybszy"}
 ];
 const CFG_KEY="notatkiai.cfg";
 function getCfg(){ try{ return Object.assign({provider:"anthropic",apiKey:"",model:"claude-sonnet-4-6",quizModel:"claude-haiku-4-5-20251001",gmKey:"",gmModel:"gemini-2.5-flash",gmQuizModel:"gemini-2.5-flash",orKey:"",orModel:"",orQuizModel:"",wUrl:"",wSecret:"",ghToken:"",ghRepo:""},JSON.parse(localStorage.getItem(CFG_KEY)||"{}")); }catch(e){ return {provider:"anthropic",apiKey:"",model:"claude-sonnet-4-6",quizModel:"claude-haiku-4-5-20251001",gmKey:"",gmModel:"gemini-2.5-flash",gmQuizModel:"gemini-2.5-flash",orKey:"",orModel:"",orQuizModel:"",wUrl:"",wSecret:"",ghToken:"",ghRepo:""}; } }
@@ -618,7 +621,7 @@ async function ask(prompt,maxTok,role){
   if(c.provider==="openrouter"&&c.orKey){
     if(!model) throw new Error("Ustaw identyfikator modelu OpenRouter w ⚙ Ustawieniach.");
     return await http("https://openrouter.ai/api/v1/chat/completions",
-      {method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+c.orKey},body:JSON.stringify({model,messages:[{role:"user",content:prompt}],max_tokens:(maxTok&&maxTok<=4000)?maxTok:16000})},
+      {method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+c.orKey},body:JSON.stringify({model,messages:[{role:"user",content:prompt}],max_tokens:(maxTok&&maxTok<=4000)?maxTok:8000})},
       d=>{ const t=d&&d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content; if(!t) throw new Error("Pusta odpowiedź OpenRouter (model przeciążony?)."); return t; });
   }
   if(c.apiKey){
