@@ -299,7 +299,8 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
     <div class="topbar">
       <div class="tb-brand"><div class="logo sm">N</div><b>NotatkiAI</b></div>
       <div class="tb-actions">
-        <button class="tb-btn" id="syncPill" title="Synchronizuj z chmurą GitHub">☁️</button>
+        <button class="tb-btn" id="authBtn" title="Konto">👤</button>
+        <button class="tb-btn" id="syncPill" title="Synchronizuj z chmurą">☁️</button>
         <button class="tb-btn" id="tbImport" title="Importuj notatkę z pliku">⬇</button>
         <button class="tb-btn" id="cfgBtnTop" title="Ustawienia AI">⚙</button>
       </div>
@@ -379,6 +380,25 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
     <div class="cfgrow"><input type="password" id="cfgGhToken" class="titlefield" placeholder="github_pat_..." style="margin:0"><button class="toolbtn" id="cfgGhEye" title="Pokaż/ukryj">👁</button></div>
     <div class="row" style="margin-top:8px"><button class="btn ghost" id="cfgGhSync">☁️ Połącz i synchronizuj</button></div>
     <div id="cfgSyncStatus" style="font-size:13px;margin-top:8px;color:var(--muted)"></div>
+  </div>
+</div>
+
+<div class="modal hidden" id="authModal">
+  <div class="modal-card">
+    <h3>👤 Konto</h3>
+    <div id="authLoggedOut">
+      <p class="cfghint">Zaloguj się, a notatki będą zapisywać się w chmurze i czekać na Ciebie na każdym urządzeniu — bez żadnych kluczy i tokenów.</p>
+      <label class="cfglbl">E-mail</label>
+      <input type="email" id="authEmail" class="titlefield" placeholder="ty@przyklad.pl" autocomplete="username">
+      <label class="cfglbl">Hasło</label>
+      <input type="password" id="authPass" class="titlefield" placeholder="min. 6 znaków" autocomplete="current-password">
+      <div class="row"><button class="btn" id="authLogin">Zaloguj</button><button class="btn ghost" id="authSignup">Załóż konto</button><button class="btn ghost" id="authClose">Zamknij</button></div>
+    </div>
+    <div id="authLoggedIn" class="hidden">
+      <p class="cfghint">Zalogowano jako <b id="authWho"></b>. Notatki synchronizują się z chmurą automatycznie.</p>
+      <div class="row"><button class="btn ghost" id="authLogout">Wyloguj</button><button class="btn ghost" id="authClose2">Zamknij</button></div>
+    </div>
+    <div id="authStatus" style="font-size:13px;margin-top:10px"></div>
   </div>
 </div>
 
@@ -569,8 +589,11 @@ async function ask(prompt,maxTok,role){
     return parse(d);
   }
   if(c.provider==="worker"&&c.wUrl){
+    const hdrs={"content-type":"application/json"};
+    let tok=null; try{ if(typeof loggedIn==="function"&&loggedIn()) tok=await freshToken(); }catch(e){}
+    if(tok) hdrs["authorization"]="Bearer "+tok; else hdrs["x-app-key"]=c.wSecret||"";
     return await http(c.wUrl.replace(/\/+$/,""),
-      {method:"POST",headers:{"content-type":"application/json","x-app-key":c.wSecret||""},body:JSON.stringify({prompt,model,maxTokens:maxTok||8000})},
+      {method:"POST",headers:hdrs,body:JSON.stringify({prompt,model,maxTokens:maxTok||8000})},
       d=>{ if(d&&d.error) throw new Error(String(d.error)); return (d&&d.text)||""; });
   }
   if(c.provider==="gemini"&&c.gmKey){
@@ -637,6 +660,76 @@ async function askJson(prompt,model){
   throw lastErr||new Error("AI zwróciło nieprawidłowy JSON.");
 }
 
+/* ---------- Supabase: konto i baza ---------- */
+const SUPA_URL="https://wxaoqngcuncwnidnvumu.supabase.co";
+const SUPA_KEY="sb_publishable_zlj7-SSov9H0TyXTyPk-cA_54TenBkg";
+const SES_KEY="notatkiai.session";
+function getSes(){ try{ return JSON.parse(localStorage.getItem(SES_KEY)||"null"); }catch(e){ return null; } }
+function setSes(x){ try{ if(x) localStorage.setItem(SES_KEY,JSON.stringify(x)); else localStorage.removeItem(SES_KEY); }catch(e){} }
+function loggedIn(){ const x=getSes(); return !!(x&&x.access_token); }
+async function supaAuth(path,body,token){
+  let r;
+  try{ r=await fetch(SUPA_URL+"/auth/v1/"+path,{method:body?"POST":"GET",headers:Object.assign({"content-type":"application/json","apikey":SUPA_KEY},token?{"authorization":"Bearer "+token}:{}),body:body?JSON.stringify(body):undefined}); }
+  catch(e){ throw new Error("Brak połączenia z serwerem kont."); }
+  const d=await r.json().catch(()=>null);
+  if(!r.ok) throw new Error((d&&(d.msg||d.message||d.error_description||d.error))||("HTTP "+r.status));
+  return d;
+}
+function sesFrom(d,old){ return {access_token:d.access_token,refresh_token:d.refresh_token||(old&&old.refresh_token),expires_at:d.expires_at||(Math.floor(Date.now()/1000)+(d.expires_in||3600)),user:d.user||(old&&old.user)||null}; }
+async function freshToken(){
+  let x=getSes(); if(!x||!x.access_token) return null;
+  if(x.expires_at && (Date.now()/1000)>(x.expires_at-90)){
+    try{ const d=await supaAuth("token?grant_type=refresh_token",{refresh_token:x.refresh_token}); x=sesFrom(d,x); setSes(x); }
+    catch(e){ setSes(null); if(typeof updateAuthUi==="function") updateAuthUi(); return null; }
+  }
+  return x.access_token;
+}
+async function doLogin(email,pass){
+  if(!email||!pass) throw new Error("Podaj e-mail i hasło.");
+  const d=await supaAuth("token?grant_type=password",{email:email,password:pass});
+  setSes(sesFrom(d,null));
+}
+async function doSignup(email,pass){
+  if(!email||!pass) throw new Error("Podaj e-mail i hasło (min. 6 znaków).");
+  const d=await supaAuth("signup",{email:email,password:pass});
+  if(d&&d.access_token){ setSes(sesFrom(d,null)); return true; }
+  return false; // wymaga potwierdzenia e-maila
+}
+function doLogout(){ setSes(null); }
+async function supaRest(pathq,opts){
+  const tok=await freshToken(); if(!tok) throw new Error("Niezalogowany — zaloguj się (👤).");
+  let r;
+  try{ r=await fetch(SUPA_URL+"/rest/v1/"+pathq,Object.assign({},opts||{},{headers:Object.assign({"content-type":"application/json","apikey":SUPA_KEY,"authorization":"Bearer "+tok},(opts&&opts.headers)||{})})); }
+  catch(e){ throw new Error("Brak połączenia z bazą."); }
+  if(r.status===204) return null;
+  const d=await r.json().catch(()=>null);
+  if(!r.ok) throw new Error((d&&(d.message||d.hint||d.error))||("HTTP "+r.status));
+  return d;
+}
+async function supaSync(){
+  const remote=await supaRest("notes?select=id,updated")||[];
+  const rmap={}; remote.forEach(x=>{ rmap[x.id]=+x.updated||0; });
+  let pulled=0,pushed=0;
+  const needPull=Object.keys(rmap).filter(id=>{ const l=state.notes.find(n=>n.id===id); const lu=l?(l.updated||l.created||0):-1; return rmap[id]>lu; });
+  for(let i=0;i<needPull.length;i+=8){
+    const chunk=needPull.slice(i,i+8);
+    const rows=await supaRest("notes?select=id,data,updated&id=in.("+chunk.map(encodeURIComponent).join(",")+")")||[];
+    rows.forEach(row=>{ const e=row.data; if(e&&e.id===row.id&&e.note){ e.updated=+row.updated||0; const ix=state.notes.findIndex(n=>n.id===row.id); if(ix>=0) state.notes[ix]=e; else state.notes.push(e); pulled++; } });
+  }
+  const toPush=state.notes.filter(n=>{ if(n.id==="demo-neuro-1") return false; const lu=n.updated||n.created||0; return !(n.id in rmap)||lu>rmap[n.id]; });
+  for(let i=0;i<toPush.length;i+=4){
+    const chunk=toPush.slice(i,i+4).map(n=>({id:n.id,data:n,updated:n.updated||n.created||0}));
+    await supaRest("notes",{method:"POST",headers:{"prefer":"resolution=merge-duplicates"},body:JSON.stringify(chunk)});
+    pushed+=chunk.length;
+  }
+  if(pulled){ state.notes.sort((a,b)=>(b.created||0)-(a.created||0)); save(); if(state.view==="home") renderHome(); else renderLib(); }
+  return {pulled:pulled,pushed:pushed};
+}
+async function deleteRemote(id){
+  if(loggedIn()){ try{ await supaRest("notes?id=eq."+encodeURIComponent(id),{method:"DELETE"}); }catch(e){} return; }
+  ghDeleteNote(id);
+}
+
 /* ---------- Synchronizacja GitHub ---------- */
 let syncBusy=false, syncTimer=null;
 function syncConfigured(){ const c=getCfg(); return !!(c.ghToken&&c.ghRepo&&c.ghRepo.includes("/")); }
@@ -657,9 +750,16 @@ function setSyncMsg(t,reset){
   }
   const st=document.getElementById("cfgSyncStatus"); if(st) st.textContent=t;
 }
-function syncSoon(){ if(!syncConfigured()) return; clearTimeout(syncTimer); syncTimer=setTimeout(()=>syncNow(false),4000); }
+function syncSoon(){ if(!loggedIn()&&!syncConfigured()) return; clearTimeout(syncTimer); syncTimer=setTimeout(()=>syncNow(false),4000); }
 async function syncNow(manual){
-  if(syncBusy||!syncConfigured()) return;
+  if(syncBusy) return;
+  if(loggedIn()){
+    syncBusy=true; setSyncMsg("☁️ Synchronizuję…");
+    try{ const r=await supaSync(); setSyncMsg("☁️ Zsynchronizowano"+((r.pulled||r.pushed)?" (↓"+r.pulled+" ↑"+r.pushed+")":" ✓"),true); }
+    catch(e){ setSyncMsg("☁️ Błąd: "+e.message,true); if(manual) alert("Synchronizacja nieudana: "+e.message); }
+    syncBusy=false; return;
+  }
+  if(!syncConfigured()) return;
   syncBusy=true; setSyncMsg("☁️ Synchronizuję…");
   try{
     const repo=getCfg().ghRepo.trim();
@@ -818,6 +918,7 @@ function setupChrome(){
   const b=document.getElementById("drawerNew"); if(b) b.onclick=nw;
   const sy=document.getElementById("syncPill"); if(sy) sy.onclick=()=>{ if(!syncConfigured()){ alert("Najpierw skonfiguruj chmurę: ⚙ Ustawienia → ☁️ Chmura GitHub."); document.getElementById("cfgBtnTop").click(); } else syncNow(true); };
   const ti=document.getElementById("tbImport"); if(ti) ti.onclick=()=>document.getElementById("importInput").click();
+  const ab=document.getElementById("authBtn"); if(ab) ab.onclick=()=>{ if(window._openAuth) window._openAuth(); };
 }
 
 function plural(n,a,b,c){ n=Math.abs(n); if(n===1) return a; const r=n%10,h=n%100; return (r>=2&&r<=4&&(h<12||h>14))?b:c; }
@@ -1219,7 +1320,7 @@ function printNote(){
   document.querySelectorAll(".sec.collapsed").forEach(x=>x.classList.remove("collapsed"));
   window.print();
 }
-function delNote(id){ if(!confirm("Usunąć tę notatkę?")) return; state.notes=state.notes.filter(n=>n.id!==id); removeNotePersist(id); ghDeleteNote(id); if(state.currentId===id){ state.currentId=null; renderHome(); } else if(state.view==="home") renderHome(); else renderLib(); }
+function delNote(id){ if(!confirm("Usunąć tę notatkę?")) return; state.notes=state.notes.filter(n=>n.id!==id); removeNotePersist(id); deleteRemote(id); if(state.currentId===id){ state.currentId=null; renderHome(); } else if(state.view==="home") renderHome(); else renderLib(); }
 
 document.getElementById("fileInput").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) handleFile(f); e.target.value=""; });
 document.getElementById("newBtn").onclick=()=>{ state.draft={title:"",text:"",fileName:"",images:[]}; renderInput(); };
@@ -1267,6 +1368,39 @@ DEMO.quiz=[
 ];
 
 if(window.pdfjsLib){ try{ pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; }catch(e){} }
+function updateAuthUi(){
+  const b=document.getElementById("authBtn");
+  if(b){ const li=loggedIn(); b.textContent=li?"👤✓":"👤"; b.title=li?("Zalogowano: "+((getSes().user&&getSes().user.email)||"")):"Zaloguj się — notatki w chmurze"; }
+}
+(function setupAuth(){
+  const m=document.getElementById("authModal"); if(!m) return;
+  const st=()=>document.getElementById("authStatus");
+  function openA(){
+    const li=loggedIn();
+    document.getElementById("authLoggedOut").classList.toggle("hidden",li);
+    document.getElementById("authLoggedIn").classList.toggle("hidden",!li);
+    if(li) document.getElementById("authWho").textContent=(getSes().user&&getSes().user.email)||"";
+    st().textContent=""; m.classList.remove("hidden");
+  }
+  window._openAuth=openA;
+  document.getElementById("authClose").onclick=()=>m.classList.add("hidden");
+  document.getElementById("authClose2").onclick=()=>m.classList.add("hidden");
+  m.addEventListener("click",e=>{ if(e.target===m) m.classList.add("hidden"); });
+  document.getElementById("authLogin").onclick=async()=>{
+    st().textContent="⏳ Loguję…";
+    try{ await doLogin(document.getElementById("authEmail").value.trim(),document.getElementById("authPass").value); st().innerHTML='<span style="color:var(--ok)">✔ Zalogowano.</span>'; updateAuthUi(); setTimeout(()=>m.classList.add("hidden"),700); syncNow(true); }
+    catch(e){ st().innerHTML='<span style="color:var(--bad)">✖ '+esc(e.message)+'</span>'; }
+  };
+  document.getElementById("authSignup").onclick=async()=>{
+    st().textContent="⏳ Zakładam konto…";
+    try{
+      const ok=await doSignup(document.getElementById("authEmail").value.trim(),document.getElementById("authPass").value);
+      if(ok){ st().innerHTML='<span style="color:var(--ok)">✔ Konto założone i zalogowano.</span>'; updateAuthUi(); setTimeout(()=>m.classList.add("hidden"),700); syncNow(true); }
+      else st().innerHTML='<span style="color:var(--ok)">✔ Konto założone — potwierdź adres (sprawdź skrzynkę), potem kliknij Zaloguj.</span>';
+    }catch(e){ st().innerHTML='<span style="color:var(--bad)">✖ '+esc(e.message)+'</span>'; }
+  };
+  document.getElementById("authLogout").onclick=()=>{ if(confirm("Wylogować? Notatki zostaną dostępne lokalnie na tym urządzeniu.")){ doLogout(); updateAuthUi(); m.classList.add("hidden"); } };
+})();
 (function setupCfg(){
   const m=document.getElementById("cfgModal"); if(!m) return;
   const sel=document.getElementById("cfgModel"), selQ=document.getElementById("cfgModelQ");
@@ -1354,8 +1488,9 @@ if(window.pdfjsLib){ try{ pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.
   if(_idbOk) idbPut(DEMO).catch(()=>{}); else save();
   state.notes.sort((a,b)=>(b.created||0)-(a.created||0));
   setupChrome();
+  updateAuthUi();
   renderLib();
   renderHome();
-  if(syncConfigured()) syncNow(false);
+  if(loggedIn()||syncConfigured()) syncNow(false);
 })();
 </script>
