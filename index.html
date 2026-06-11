@@ -578,8 +578,9 @@ async function ask(prompt,maxTok,role){
   const c=getCfg(); const model=modelFor(role==="quiz"?"quiz":"note");
   async function http(url,opts,parse){
     let r; try{ r=await fetch(url,opts); }catch(e){ throw new Error("Brak połączenia z API — sprawdź internet."); }
-    if(r.status===429){ // limit na minutę — odczekaj i spróbuj raz jeszcze
-      await new Promise(res=>setTimeout(res,18000));
+    for(let retry=0; retry<2 && (r.status===429||r.status===503||r.status===529); retry++){
+      // limit na minutę albo chwilowe przeciążenie modelu — odczekaj i ponów
+      await new Promise(res=>setTimeout(res,retry===0?18000:35000));
       try{ r=await fetch(url,opts); }catch(e){ throw new Error("Brak połączenia z API — sprawdź internet."); }
     }
     let d=null; try{ d=await r.json(); }catch(e){}
@@ -588,6 +589,7 @@ async function ask(prompt,maxTok,role){
       if(typeof msg!=="string") msg=JSON.stringify(msg);
       if(r.status===401||r.status===403) msg="Nieprawidłowy klucz lub brak dostępu. "+msg;
       if(r.status===429) msg="Limit zapytań dostawcy — odczekaj chwilę. "+msg;
+      if(r.status===503||r.status===529) msg="Model chwilowo przeciążony — spróbuj za parę minut albo przełącz model w ⚙. "+msg;
       throw new Error(msg);
     }
     return parse(d);
