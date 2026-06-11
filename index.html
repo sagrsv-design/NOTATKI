@@ -354,9 +354,17 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
       <label class="cfglbl">Klucz API OpenRouter</label>
       <input type="password" id="cfgOrKey" class="titlefield" placeholder="sk-or-...">
       <label class="cfglbl">Model notatek (identyfikator)</label>
-      <input type="text" id="cfgOrModel" class="titlefield" placeholder="np. deepseek/deepseek-chat-v3.1:free">
+      <input type="text" id="cfgOrModel" class="titlefield" placeholder="np. moonshotai/kimi-k2.6:free" list="orModelList">
       <label class="cfglbl">Model quizów i banku (puste = ten sam)</label>
-      <input type="text" id="cfgOrModelQ" class="titlefield" placeholder="np. meta-llama/llama-3.3-70b-instruct:free">
+      <input type="text" id="cfgOrModelQ" class="titlefield" placeholder="np. google/gemma-4-31b-it:free" list="orModelList">
+      <datalist id="orModelList">
+        <option value="moonshotai/kimi-k2.6:free">
+        <option value="openai/gpt-oss-120b:free">
+        <option value="google/gemma-4-31b-it:free">
+        <option value="deepseek/deepseek-r1:free">
+        <option value="nvidia/nemotron-3-super-120b-a12b:free">
+        <option value="openrouter/free">
+      </datalist>
     </div>
     <div id="provWorker" class="hidden">
       <p class="cfghint" style="margin:8px 0 0">Twój pośrednik na Cloudflare Workers — klucz Anthropic leży na serwerze i nigdy nie trafia do przeglądarki. Wymaga jednorazowego wdrożenia pliku worker.js.</p>
