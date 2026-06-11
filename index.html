@@ -324,12 +324,50 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
   <div class="modal-card">
     <h3>⚙ Ustawienia AI</h3>
     <p class="cfghint">Klucz API wygenerujesz na <b>platform.claude.com</b> → Settings → API keys. Klucz zapisuje się <b>wyłącznie w tej przeglądarce</b> — nie udostępniaj nikomu pliku ani urządzenia z wpisanym kluczem.</p>
-    <label class="cfglbl">Klucz API</label>
-    <div class="cfgrow"><input type="password" id="cfgKey" class="titlefield" placeholder="sk-ant-..." style="margin:0"><button class="toolbtn" id="cfgEye" title="Pokaż/ukryj">👁</button></div>
-    <label class="cfglbl">Model notatek</label>
-    <select id="cfgModel" class="modelsel" style="width:100%"></select>
-    <label class="cfglbl">Model quizów i banku pytań</label>
-    <select id="cfgModelQ" class="modelsel" style="width:100%"></select>
+    <label class="cfglbl">Dostawca AI</label>
+    <select id="cfgProv" class="modelsel" style="width:100%">
+      <option value="anthropic">Anthropic (Claude) — najlepsza jakość, płatny</option>
+      <option value="gemini">Google Gemini — darmowy pakiet</option>
+      <option value="openrouter">OpenRouter — darmowe modele</option>
+      <option value="worker">Mój Worker — klucz chroniony na serwerze</option>
+    </select>
+    <div id="provAnthropic">
+      <label class="cfglbl">Klucz API Anthropic</label>
+      <div class="cfgrow"><input type="password" id="cfgKey" class="titlefield" placeholder="sk-ant-..." style="margin:0"><button class="toolbtn" id="cfgEye" title="Pokaż/ukryj">👁</button></div>
+      <label class="cfglbl">Model notatek</label>
+      <select id="cfgModel" class="modelsel" style="width:100%"></select>
+      <label class="cfglbl">Model quizów i banku pytań</label>
+      <select id="cfgModelQ" class="modelsel" style="width:100%"></select>
+    </div>
+    <div id="provGemini" class="hidden">
+      <p class="cfghint" style="margin:8px 0 0">Darmowy klucz: <b>aistudio.google.com</b> → Get API key (bez karty). Uwaga: w darmowym pakiecie Google może używać treści do trenowania.</p>
+      <label class="cfglbl">Klucz API Gemini</label>
+      <input type="password" id="cfgGmKey" class="titlefield" placeholder="AIza...">
+      <label class="cfglbl">Model notatek</label>
+      <select id="cfgGmModel" class="modelsel" style="width:100%"></select>
+      <label class="cfglbl">Model quizów i banku pytań</label>
+      <select id="cfgGmModelQ" class="modelsel" style="width:100%"></select>
+    </div>
+    <div id="provOpenrouter" class="hidden">
+      <p class="cfghint" style="margin:8px 0 0">Klucz: <b>openrouter.ai</b> → Keys. Darmowe modele (50 zapytań/dzień bez doładowania) znajdziesz na openrouter.ai/models z filtrem „Free" — wklej ich identyfikator poniżej.</p>
+      <label class="cfglbl">Klucz API OpenRouter</label>
+      <input type="password" id="cfgOrKey" class="titlefield" placeholder="sk-or-...">
+      <label class="cfglbl">Model notatek (identyfikator)</label>
+      <input type="text" id="cfgOrModel" class="titlefield" placeholder="np. deepseek/deepseek-chat-v3.1:free">
+      <label class="cfglbl">Model quizów i banku (puste = ten sam)</label>
+      <input type="text" id="cfgOrModelQ" class="titlefield" placeholder="np. meta-llama/llama-3.3-70b-instruct:free">
+    </div>
+    <div id="provWorker" class="hidden">
+      <p class="cfghint" style="margin:8px 0 0">Twój pośrednik na Cloudflare Workers — klucz Anthropic leży na serwerze i nigdy nie trafia do przeglądarki. Wymaga jednorazowego wdrożenia pliku worker.js.</p>
+      <label class="cfglbl">Adres Workera</label>
+      <input type="text" id="cfgWUrl" class="titlefield" placeholder="https://notatki-ai.xxx.workers.dev">
+      <label class="cfglbl">Hasło dostępu (APP_KEY)</label>
+      <input type="password" id="cfgWSecret" class="titlefield" placeholder="długi losowy ciąg ustawiony w workerze">
+      <label class="cfglbl">Model notatek</label>
+      <select id="cfgWModel" class="modelsel" style="width:100%"></select>
+      <label class="cfglbl">Model quizów i banku pytań</label>
+      <select id="cfgWModelQ" class="modelsel" style="width:100%"></select>
+    </div>
     <div class="row"><button class="btn" id="cfgSave">Zapisz</button><button class="btn ghost" id="cfgTest">Przetestuj połączenie</button><button class="btn ghost" id="cfgClose">Zamknij</button></div>
     <div id="cfgStatus" style="font-size:13px;margin-top:10px"></div>
     <label class="cfglbl">Kopia zapasowa (wszystkie notatki, quizy i banki z postępem)</label>
@@ -494,32 +532,69 @@ const MODELS=[
   {id:"claude-sonnet-4-6",label:"Sonnet 4.6 — polecany (~0,15$ / notatka)"},
   {id:"claude-opus-4-8",label:"Opus 4.8 — najmocniejszy (~0,25$ / notatka)"}
 ];
+const GMODELS=[
+  {id:"gemini-2.5-pro",label:"Gemini 2.5 Pro — najlepszy (mały limit dzienny)"},
+  {id:"gemini-2.5-flash",label:"Gemini 2.5 Flash — polecany darmowy"},
+  {id:"gemini-2.5-flash-lite",label:"Gemini Flash-Lite — najszybszy, duży limit"}
+];
 const CFG_KEY="notatkiai.cfg";
-function getCfg(){ try{ return Object.assign({apiKey:"",model:"claude-sonnet-4-6",quizModel:"claude-haiku-4-5-20251001",ghToken:"",ghRepo:""},JSON.parse(localStorage.getItem(CFG_KEY)||"{}")); }catch(e){ return {apiKey:"",model:"claude-sonnet-4-6",quizModel:"claude-haiku-4-5-20251001",ghToken:"",ghRepo:""}; } }
+function getCfg(){ try{ return Object.assign({provider:"anthropic",apiKey:"",model:"claude-sonnet-4-6",quizModel:"claude-haiku-4-5-20251001",gmKey:"",gmModel:"gemini-2.5-flash",gmQuizModel:"gemini-2.5-flash",orKey:"",orModel:"",orQuizModel:"",wUrl:"",wSecret:"",ghToken:"",ghRepo:""},JSON.parse(localStorage.getItem(CFG_KEY)||"{}")); }catch(e){ return {provider:"anthropic",apiKey:"",model:"claude-sonnet-4-6",quizModel:"claude-haiku-4-5-20251001",gmKey:"",gmModel:"gemini-2.5-flash",gmQuizModel:"gemini-2.5-flash",orKey:"",orModel:"",orQuizModel:"",wUrl:"",wSecret:"",ghToken:"",ghRepo:""}; } }
 function setCfg(c){ try{ localStorage.setItem(CFG_KEY,JSON.stringify(c)); }catch(e){} }
-function aiAvailable(){ return !!getCfg().apiKey || !!(window.cowork && typeof window.cowork.askClaude==="function"); }
-async function ask(prompt,maxTok,model){
+function aiAvailable(){
   const c=getCfg();
-  if(c.apiKey){
-    let r;
-    try{
-      r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":c.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:model||c.model||"claude-sonnet-4-6",max_tokens:maxTok||8000,messages:[{role:"user",content:prompt}]})});
-    }catch(e){ throw new Error("Brak połączenia z API — sprawdź internet."); }
+  if(c.provider==="gemini") return !!c.gmKey;
+  if(c.provider==="openrouter") return !!(c.orKey&&c.orModel);
+  if(c.provider==="worker") return !!(c.wUrl&&c.wSecret);
+  if(c.apiKey) return true;
+  return !!(window.cowork && typeof window.cowork.askClaude==="function");
+}
+function modelFor(role){
+  const c=getCfg();
+  if(c.provider==="gemini") return role==="quiz"?(c.gmQuizModel||"gemini-2.5-flash"):(c.gmModel||"gemini-2.5-flash");
+  if(c.provider==="openrouter") return role==="quiz"?(c.orQuizModel||c.orModel):c.orModel;
+  return role==="quiz"?(c.quizModel||"claude-haiku-4-5-20251001"):(c.model||"claude-sonnet-4-6");
+}
+async function ask(prompt,maxTok,role){
+  const c=getCfg(); const model=modelFor(role==="quiz"?"quiz":"note");
+  async function http(url,opts,parse){
+    let r; try{ r=await fetch(url,opts); }catch(e){ throw new Error("Brak połączenia z API — sprawdź internet."); }
+    let d=null; try{ d=await r.json(); }catch(e){}
     if(!r.ok){
-      let msg="HTTP "+r.status; try{ const e=await r.json(); msg=(e&&e.error&&e.error.message)||msg; }catch(_e){}
-      if(r.status===401) msg="Nieprawidłowy klucz API (sprawdź w ⚙ Ustawieniach).";
-      if(r.status===429) msg="Przekroczony limit zapytań — odczekaj chwilę. "+msg;
+      let msg=(d&&((d.error&&(d.error.message||d.error))||d.message))||("HTTP "+r.status);
+      if(typeof msg!=="string") msg=JSON.stringify(msg);
+      if(r.status===401||r.status===403) msg="Nieprawidłowy klucz lub brak dostępu. "+msg;
+      if(r.status===429) msg="Limit zapytań dostawcy — odczekaj chwilę. "+msg;
       throw new Error(msg);
     }
-    const d=await r.json();
-    return (d.content||[]).map(b=>b.text||"").join("");
+    return parse(d);
+  }
+  if(c.provider==="worker"&&c.wUrl){
+    return await http(c.wUrl.replace(/\/+$/,""),
+      {method:"POST",headers:{"content-type":"application/json","x-app-key":c.wSecret||""},body:JSON.stringify({prompt,model,maxTokens:maxTok||8000})},
+      d=>{ if(d&&d.error) throw new Error(String(d.error)); return (d&&d.text)||""; });
+  }
+  if(c.provider==="gemini"&&c.gmKey){
+    return await http("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(model)+":generateContent?key="+encodeURIComponent(c.gmKey),
+      {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:maxTok||8192}})},
+      d=>{ const cand=d&&d.candidates&&d.candidates[0]; const txt=(cand&&cand.content&&cand.content.parts)?cand.content.parts.map(x=>x.text||"").join(""):""; if(!txt) throw new Error("Pusta odpowiedź Gemini"+((cand&&cand.finishReason)?" ("+cand.finishReason+")":"")+"."); return txt; });
+  }
+  if(c.provider==="openrouter"&&c.orKey){
+    if(!model) throw new Error("Ustaw identyfikator modelu OpenRouter w ⚙ Ustawieniach.");
+    return await http("https://openrouter.ai/api/v1/chat/completions",
+      {method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+c.orKey},body:JSON.stringify({model,messages:[{role:"user",content:prompt}],max_tokens:maxTok||8000})},
+      d=>{ const t=d&&d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content; if(!t) throw new Error("Pusta odpowiedź OpenRouter (model przeciążony?)."); return t; });
+  }
+  if(c.apiKey){
+    return await http("https://api.anthropic.com/v1/messages",
+      {method:"POST",headers:{"content-type":"application/json","x-api-key":c.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model,max_tokens:maxTok||8000,messages:[{role:"user",content:prompt}]})},
+      d=>(d.content||[]).map(b=>b.text||"").join(""));
   }
   if(window.cowork && typeof window.cowork.askClaude==="function"){
     let r; try{ r=await window.cowork.askClaude(prompt,[]); }catch(e){ r=await window.cowork.askClaude(prompt); }
     if(typeof r==="string") return r; if(r==null) return "";
     return r.text ?? r.completion ?? r.response ?? r.output ?? r.message ?? (r.content&&(Array.isArray(r.content)?r.content.map(c2=>c2.text||"").join(""):r.content)) ?? JSON.stringify(r);
   }
-  throw new Error("Brak skonfigurowanego AI — wpisz klucz API w ⚙ Ustawienia AI.");
+  throw new Error("Brak skonfigurowanego AI — wybierz dostawcę i wpisz klucz w ⚙ Ustawienia AI.");
 }
 function extractJson(s){ if(!s) throw new Error("Pusta odpowiedź AI."); let t=s.trim().replace(/^```(?:json)?/i,"").replace(/```$/,"").trim(); const a=t.indexOf("{"),b=t.lastIndexOf("}"); if(a<0||b<0) throw new Error("AI nie zwróciło danych JSON."); return JSON.parse(t.slice(a,b+1)); }
 function escapeStrayQuotes(s){
@@ -797,7 +872,11 @@ function renderInput(){
     <input class="titlefield" id="titleF" placeholder="Tytuł notatki (opcjonalnie)" value="${esc(f.title)}">
     <textarea id="textF" placeholder="Wklej tu treść wykładu, notatki, transkrypcję…">${esc(f.text)}</textarea>
     <div id="aiWarn"></div>
-    <div class="row"><button class="btn" id="genBtn">✨ Generuj notatkę</button>${getCfg().apiKey?`<select id="modelSel" class="modelsel" title="Model AI">${MODELS.map(m=>`<option value="${m.id}"${m.id===getCfg().model?" selected":""}>${m.label}</option>`).join("")}</select>`:""}<span style="font-size:12.5px;color:var(--muted)" id="charInfo"></span></div>`;
+    <div class="row"><button class="btn" id="genBtn">✨ Generuj notatkę</button>${(()=>{const c=getCfg();
+      if(c.provider==="gemini"&&c.gmKey) return `<select id="modelSel" class="modelsel" data-k="gmModel" title="Model AI">${GMODELS.map(m=>`<option value="${m.id}"${m.id===c.gmModel?" selected":""}>${m.label}</option>`).join("")}</select>`;
+      if(c.provider==="openrouter"&&c.orKey) return `<span style="font-size:12px;color:var(--muted)">model: ${esc(c.orModel||"ustaw w ⚙")}</span>`;
+      if((c.provider==="worker"&&c.wUrl)||(c.provider==="anthropic"&&c.apiKey)) return `<select id="modelSel" class="modelsel" data-k="model" title="Model AI">${MODELS.map(m=>`<option value="${m.id}"${m.id===c.model?" selected":""}>${m.label}</option>`).join("")}</select>`;
+      return "";})()}<span style="font-size:12.5px;color:var(--muted)" id="charInfo"></span></div>`;
   if(!aiAvailable()) document.getElementById("aiWarn").innerHTML=`<div class="banner warn">⚠️ Aby generować notatki, wpisz klucz API w <b>⚙ Ustawienia AI</b> (panel po lewej).</div>`;
   const drop=document.getElementById("drop"), fileWrap=document.getElementById("fileWrap");
   const titleF=document.getElementById("titleF"), textF=document.getElementById("textF");
@@ -809,7 +888,7 @@ function renderInput(){
   document.getElementById("pick").onclick=()=>document.getElementById("fileInput").click();
   document.getElementById("genBtn").onclick=onGenerate;
   document.getElementById("backHome").onclick=renderHome;
-  const mSel=document.getElementById("modelSel"); if(mSel) mSel.onchange=()=>{ const c=getCfg(); c.model=mSel.value; setCfg(c); };
+  const mSel=document.getElementById("modelSel"); if(mSel) mSel.onchange=()=>{ const c=getCfg(); c[mSel.getAttribute("data-k")||"model"]=mSel.value; setCfg(c); };
   ["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.add("drag"); }));
   ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.remove("drag"); }));
   drop.addEventListener("drop",e=>{ const file=e.dataTransfer.files[0]; if(file) handleFile(file); });
@@ -999,11 +1078,11 @@ async function generateBank(entry){
   const secs=(entry.note.sections||[]).filter(x=>(x.points&&x.points.length)||x.lead||x.mainIdea);
   if(!secs.length){ alert("Ta notatka nie ma sekcji do przepytania."); return; }
   const pane=document.getElementById("pane"); if(!pane) return;
-  const qm=getCfg().quizModel; const all=[]; let failed=0;
+  const all=[]; let failed=0;
   for(let i=0;i<secs.length;i++){
     pane.innerHTML=`<div class="center"><div><div class="spinner"></div><h3 style="color:var(--ink);margin:0 0 6px">Buduję bank pytań…</h3><div class="steps">Sekcja ${i+1} z ${secs.length}: ${esc(secs[i].heading||"")}<br>pytań w banku: ${all.length}</div></div></div>`;
     try{
-      const data=await askJson(BANK_PROMPT(entry.note.title||"",sectionText(secs[i])),qm);
+      const data=await askJson(BANK_PROMPT(entry.note.title||"",sectionText(secs[i])),"quiz");
       (data.questions||[]).forEach(qq=>{ if(qq&&qq.q&&qq.options&&qq.options.length===4&&qq.correct>=0&&qq.correct<=3) all.push({q:qq.q,options:qq.options,correct:qq.correct,explanation:qq.explanation||"",sec:secs[i].heading||"",streak:0,wrong:0,seen:0}); });
     }catch(e){ failed++; }
   }
@@ -1061,7 +1140,7 @@ async function requestQuiz(count){
   if(!aiAvailable()){ alert("Najpierw wpisz klucz API w ⚙ Ustawienia AI."); return; }
   const t=loadingView("Układam quiz…",["Przeglądam notatkę","Wybieram kluczowe fakty","Tworzę pytania i odpowiedzi","Dodaję uzasadnienia"]);
   try{
-    const data=await askJson(QUIZ_PROMPT(entry.note,count),getCfg().quizModel);
+    const data=await askJson(QUIZ_PROMPT(entry.note,count),"quiz");
     const qs=(data.questions||[]).filter(q=>q&&q.options&&q.options.length>=2).slice(0,count);
     if(!qs.length) throw new Error("Quiz pusty.");
     entry.quiz=qs; entry.updated=Date.now(); save(); syncSoon(); clearInterval(t); startQuiz(entry);
@@ -1191,23 +1270,57 @@ if(window.pdfjsLib){ try{ pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.
 (function setupCfg(){
   const m=document.getElementById("cfgModal"); if(!m) return;
   const sel=document.getElementById("cfgModel"), selQ=document.getElementById("cfgModelQ");
+  const selW=document.getElementById("cfgWModel"), selWQ=document.getElementById("cfgWModelQ");
+  const selG=document.getElementById("cfgGmModel"), selGQ=document.getElementById("cfgGmModelQ");
   sel.innerHTML=MODELS.map(x=>`<option value="${x.id}">${x.label}</option>`).join("");
-  selQ.innerHTML=MODELS.map(x=>`<option value="${x.id}">${x.label.replace(" / notatka","")}</option>`).join("");
-  function openM(){ const c=getCfg(); document.getElementById("cfgKey").value=c.apiKey; sel.value=c.model; selQ.value=c.quizModel; document.getElementById("cfgGhRepo").value=c.ghRepo||""; document.getElementById("cfgGhToken").value=c.ghToken||""; document.getElementById("cfgStatus").textContent=""; document.getElementById("cfgSyncStatus").textContent=""; m.classList.remove("hidden"); }
+  selQ.innerHTML=sel.innerHTML; selW.innerHTML=sel.innerHTML; selWQ.innerHTML=sel.innerHTML;
+  selG.innerHTML=GMODELS.map(x=>`<option value="${x.id}">${x.label}</option>`).join(""); selGQ.innerHTML=selG.innerHTML;
+  const provSel=document.getElementById("cfgProv");
+  function showProv(){ const v=provSel.value; [["provAnthropic","anthropic"],["provGemini","gemini"],["provOpenrouter","openrouter"],["provWorker","worker"]].forEach(pair=>{ document.getElementById(pair[0]).classList.toggle("hidden",v!==pair[1]); }); }
+  provSel.onchange=showProv;
+  function collectCfg(){
+    return Object.assign({},getCfg(),{
+      provider:provSel.value,
+      apiKey:document.getElementById("cfgKey").value.trim(),
+      model:(provSel.value==="worker"?selW.value:sel.value),
+      quizModel:(provSel.value==="worker"?selWQ.value:selQ.value),
+      gmKey:document.getElementById("cfgGmKey").value.trim(),
+      gmModel:selG.value, gmQuizModel:selGQ.value,
+      orKey:document.getElementById("cfgOrKey").value.trim(),
+      orModel:document.getElementById("cfgOrModel").value.trim(),
+      orQuizModel:document.getElementById("cfgOrModelQ").value.trim(),
+      wUrl:document.getElementById("cfgWUrl").value.trim(),
+      wSecret:document.getElementById("cfgWSecret").value.trim(),
+      ghToken:document.getElementById("cfgGhToken").value.trim(),
+      ghRepo:document.getElementById("cfgGhRepo").value.trim()
+    });
+  }
+  function openM(){
+    const c=getCfg();
+    provSel.value=c.provider||"anthropic"; showProv();
+    document.getElementById("cfgKey").value=c.apiKey||"";
+    sel.value=c.model; selQ.value=c.quizModel; selW.value=c.model; selWQ.value=c.quizModel;
+    document.getElementById("cfgGmKey").value=c.gmKey||""; selG.value=c.gmModel||"gemini-2.5-flash"; selGQ.value=c.gmQuizModel||"gemini-2.5-flash";
+    document.getElementById("cfgOrKey").value=c.orKey||""; document.getElementById("cfgOrModel").value=c.orModel||""; document.getElementById("cfgOrModelQ").value=c.orQuizModel||"";
+    document.getElementById("cfgWUrl").value=c.wUrl||""; document.getElementById("cfgWSecret").value=c.wSecret||"";
+    document.getElementById("cfgGhRepo").value=c.ghRepo||""; document.getElementById("cfgGhToken").value=c.ghToken||"";
+    document.getElementById("cfgStatus").textContent=""; document.getElementById("cfgSyncStatus").textContent="";
+    m.classList.remove("hidden");
+  }
   ["cfgBtn","cfgBtnTop"].forEach(id=>{ const b=document.getElementById(id); if(b) b.onclick=openM; });
   document.getElementById("cfgClose").onclick=()=>m.classList.add("hidden");
   m.addEventListener("click",e=>{ if(e.target===m) m.classList.add("hidden"); });
   document.getElementById("cfgEye").onclick=()=>{ const k=document.getElementById("cfgKey"); k.type=k.type==="password"?"text":"password"; };
-  document.getElementById("cfgSave").onclick=()=>{ setCfg({apiKey:document.getElementById("cfgKey").value.trim(),model:sel.value,quizModel:selQ.value,ghToken:document.getElementById("cfgGhToken").value.trim(),ghRepo:document.getElementById("cfgGhRepo").value.trim()}); document.getElementById("cfgStatus").innerHTML='<span style="color:var(--ok)">✔ Zapisano.</span>'; if(state.view==="input") renderInput(); };
+  document.getElementById("cfgSave").onclick=()=>{ setCfg(collectCfg()); document.getElementById("cfgStatus").innerHTML='<span style="color:var(--ok)">✔ Zapisano.</span>'; if(state.view==="input") renderInput(); };
   document.getElementById("cfgTest").onclick=async()=>{
     const st=document.getElementById("cfgStatus");
-    setCfg({apiKey:document.getElementById("cfgKey").value.trim(),model:sel.value,quizModel:selQ.value,ghToken:document.getElementById("cfgGhToken").value.trim(),ghRepo:document.getElementById("cfgGhRepo").value.trim()});
+    setCfg(collectCfg());
     st.textContent="⏳ Testuję połączenie…";
-    try{ const r=await ask("Odpowiedz dokładnie jednym słowem: OK",20); st.innerHTML='<span style="color:var(--ok)">✔ Działa! Odpowiedź modelu: '+esc((r||"").trim().slice(0,40))+'</span>'; }
+    try{ const r=await ask("Odpowiedz dokładnie jednym słowem: OK",30); st.innerHTML='<span style="color:var(--ok)">✔ Działa! Odpowiedź modelu: '+esc((r||"").trim().slice(0,40))+'</span>'; }
     catch(e){ st.innerHTML='<span style="color:var(--bad)">✖ '+esc(e.message)+'</span>'; }
   };
   document.getElementById("cfgGhEye").onclick=()=>{ const k=document.getElementById("cfgGhToken"); k.type=k.type==="password"?"text":"password"; };
-  document.getElementById("cfgGhSync").onclick=()=>{ setCfg({apiKey:document.getElementById("cfgKey").value.trim(),model:sel.value,quizModel:selQ.value,ghToken:document.getElementById("cfgGhToken").value.trim(),ghRepo:document.getElementById("cfgGhRepo").value.trim()}); if(!syncConfigured()){ document.getElementById("cfgSyncStatus").textContent="Uzupełnij repo (format: użytkownik/nazwa) i token."; return; } syncNow(true); };
+  document.getElementById("cfgGhSync").onclick=()=>{ setCfg(collectCfg()); if(!syncConfigured()){ document.getElementById("cfgSyncStatus").textContent="Uzupełnij repo (format: użytkownik/nazwa) i token."; return; } syncNow(true); };
   document.getElementById("bkExport").onclick=()=>{
     const data={type:"notatkiai-backup",version:1,exported:Date.now(),notes:state.notes.filter(n=>n.id!=="demo-neuro-1")};
     const blob=new Blob([JSON.stringify(data)],{type:"application/json"});
