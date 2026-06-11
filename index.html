@@ -836,23 +836,26 @@ async function ghDeleteNote(id){
   }catch(e){}
 }
 
-const NOTE_PROMPT=(txt,imgSlides)=>`Jesteś doświadczonym dydaktykiem akademickim. Na podstawie materiału z wykładu napisz notatkę do nauki PO POLSKU. Notatka ma być KOMPLETNA (opracowany cały materiał, od pierwszego do OSTATNIEGO slajdu — nie urywaj jej w połowie) i jednocześnie napisana mądrze: każda informacja pojawia się w niej dokładnie JEDEN raz.
-STRUKTURA:
-1. Podziel materiał na 3-6 rozdziałów ("group"), każdy z 1-4 sekcjami. ŁĄCZ drobne, pokrewne wątki w jedną sekcję — nie twórz osobnej sekcji dla każdego slajdu ani sekcji-zapchajek. Lepiej mniej sekcji, ale treściwych.
-2. "heading": konkretna nazwa zagadnienia w 1-4 słowach (np. „Płat czołowy", „Opony mózgowe"). Bez całych zdań.
-3. "lead": 1-3 zdania otwierające sekcję, które od razu podają najważniejszą treść zagadnienia. ZAKAZANE: parafrazowanie nagłówka, zwroty meta („ta sekcja omawia…", „główną myślą jest…"), ogólniki bez konkretu. Jeśli nie masz nic ponad to, co powiedzą punkty — ustaw "".
-4. "points": 3-7 punktów w formacie "**Pojęcie:** wyjaśnienie". Każdy punkt wnosi NOWĄ informację — nie powtarzaj treści leadu, innych punktów ani innych sekcji. Pojęcia, które wykład tylko wylicza (rodzaje, płaszczyzny, terminologia kierunkowa), rozwiń o krótką definicję każdego z nich. Nazwy własne i przypadki sygnalizowane w wykładzie (np. H.M., Phineas Gage, zespół Korsakowa) wyjaśnij jednym zdaniem.
-5. "examples": maksymalnie 1-2 na sekcję i TYLKO gdy realnie pomagają zrozumieć (trafna analogia, przypadek kliniczny, zastosowanie praktyczne). Nie wymyślaj przykładów na siłę — częściej zostawiaj pustą listę [].
-6. "table": tylko gdy treść to naturalne zestawienie (struktura → funkcja, porównanie lewa vs prawa półkula, obszar → tętnica); w innym wypadku null. Nie dubluj w punktach danych, które są w tabeli.
-KONTROLA JAKOŚCI — zanim zwrócisz odpowiedź, sprawdź całość:
-- żadne zdanie, fakt ani sformułowanie nie występuje w notatce dwukrotnie (także między leadem a punktami);
-- lead każdej sekcji wnosi treść, a nie przeformułowany nagłówek;
-- końcowe partie materiału są opracowane tak samo starannie jak początek;
-- tekst czyta się płynnie jak dobrze zredagowana notatka, nie jak szablon.
-${imgSlides.length?`OBRAZY: dostępne są zdjęcia ze slajdów: ${imgSlides.join(", ")}. W polu "imageSlides" sekcji podaj numery slajdów, których zdjęcie WYRAŹNIE ilustruje treść tej sekcji (diagram, schemat, przekrój, wykres). Każdy obraz przypisz najwyżej do jednej sekcji — tej, której dotyczy bezpośrednio. Gdy przypisujesz obraz, w leadzie lub punktach tej sekcji odnieś się do tego, co konkretnie widać na ilustracji (bez podawania numeru slajdu). Jeśli nie masz pewności, że obraz pasuje — NIE przypisuj go; lepiej pominąć niż wstawić nietrafiony.`:`Pole "imageSlides" każdej sekcji zostaw jako pustą listę.`}
+const NOTE_PROMPT=(txt,imgSlides)=>`Jesteś najlepszym studentem na roku, który robi notatki, z których uczy się cała grupa przed egzaminem. Na podstawie materiału z wykładu stwórz notatkę PO POLSKU, która sama wystarczy do nauki — bez sięgania po oryginalne slajdy.
+
+CEL NOTATKI (najważniejsze): notatka ma jednocześnie (a) ZSYNTETYZOWAĆ wykład — pokazać studentowi, czego ma się nauczyć i jak temat jest poukładany, oraz (b) WYJAŚNIĆ każdą rzecz na tyle, by dało się ją zrozumieć od zera. Trafiaj w ZŁOTY ŚRODEK definicji: nie suchy równoważnik ze slajdu („opona twarda — zewnętrzna"), ale i nie rozwlekły akapit; jedno-dwa zdania, które tłumaczą POJĘCIE i jego ZNACZENIE/FUNKCJĘ tak, że student rozumie, a nie tylko przepisuje.
+
+ARCHITEKTURA (to odróżnia świetną notatkę od słabej — przestrzegaj rygorystycznie):
+1. Materiał DZIEL NA 4-6 rozdziałów ("group"), a każdy rozdział na 2-4 sekcje. Łącznie sekcji w całej notatce ma być orientacyjnie 6-13, NIGDY po jednej na slajd. Jeśli wychodzi Ci kilkanaście drobnych sekcji — ZNACZY, że źle grupujesz: scal pokrewne wątki. Słaba notatka jest rozdrobniona; dobra ma czytelne, treściwe bloki.
+2. "heading": rzeczowa nazwa zagadnienia w 1-4 słowach (np. „Płat czołowy", „Proces diagnostyczny"). Bez zdań.
+3. "lead": 1-2 zdania, które wprowadzają w sekcję i od razu podają jej sedno — student po przeczytaniu leadu ma wiedzieć, „o co chodzi i dlaczego to ważne". ZAKAZ parafrazowania nagłówka i zwrotów meta („ta sekcja omawia…"). Jeśli sekcja jest czystym wyliczeniem i lead nic nie wniesie — ustaw "".
+4. "points": 3-8 punktów w formacie "**Pojęcie:** wyjaśnienie". To jest rdzeń nauki. Każdy punkt = jedno pojęcie egzaminacyjne + jego zrozumiałe wyjaśnienie (definicja + funkcja/znaczenie/skutek). Pogrubiaj DOKŁADNIE ten termin, którego student musi się nauczyć (nazwa struktury, zespołu, metody, pojęcia) — to one staną się fiszkami i pytaniami w quizie. Każde pojęcie wyliczone w wykładzie (rodzaje, etapy, płaszczyzny, objawy) rozwiń o własną definicję; nie zostawiaj samych nazw. Nazwy własne i przypadki (np. H.M., Phineas Gage, zespół Korsakowa) wyjaśnij jednym zdaniem, czego dowodzą.
+5. SYNTEZA ZAMIAST PRZEPISYWANIA: gdy wykład wylicza wiele podobnych elementów rządzących się wspólną zasadą, najpierw podaj zasadę ogólną w leadzie/punkcie, a potem tylko wyjątki — nie przepisuj mechanicznie każdego wiersza ze slajdu, jeśli da się to mądrze streścić (zachowując pełnię informacji).
+6. "examples": 0-2 na sekcję, TYLKO gdy realnie pomagają zapamiętać — celna analogia, przypadek kliniczny albo praktyczne zastosowanie. Nie dorabiaj na siłę; przy większości sekcji [].
+7. "table": używaj, gdy treść to naturalne zestawienie (struktura → funkcja, lewa vs prawa półkula, obszar → tętnica, etap → opis). Tabela to znakomite narzędzie do nauki porównań — wykorzystaj ją, gdy materiał na to pozwala. Nie dubluj w punktach tego, co w tabeli.
+
+KOMPLETNOŚĆ: opracuj CAŁY materiał, od pierwszego do OSTATNIEGO slajdu — końcówki (diagnostyka, terminologia, podsumowania) opracuj tak samo starannie jak początek. Pomijaj WYŁĄCZNIE slajdy organizacyjne (tytuł, plan, bibliografia, „dziękuję").
+
+KONTROLA JAKOŚCI przed zwróceniem: (1) żaden fakt nie powtarza się dwa razy; (2) liczba sekcji mieści się w 6-13 i są pogrupowane w rozdziały; (3) każdy pogrubiony termin to realne pojęcie do nauczenia; (4) definicje trafiają w złoty środek — ani suche, ani rozwlekłe; (5) całość czyta się jak notatka świetnego studenta, nie jak spis treści.
+${imgSlides.length?`OBRAZY: dostępne są zdjęcia ze slajdów: ${imgSlides.join(", ")}. Dla każdego obrazu zadaj sobie pytanie „której KONKRETNEJ sekcji treść on ilustruje?" i wpisz jego numer w "imageSlides" TYLKO tej jednej sekcji, której temat bezpośrednio pokazuje (np. schemat opon → sekcja o oponach, przekrój układu komorowego → sekcja o komorach, mapa unaczynienia → sekcja o ukrwieniu). Jeden obraz = najwyżej jedna sekcja. Gdy przypisujesz obraz, w treści tej sekcji nawiąż do tego, co na nim widać (bez podawania numeru slajdu). Obraz dekoracyjny, ogólny albo niepasujący do żadnej konkretnej sekcji — POMIŃ (nie przypisuj nigdzie). Lepiej zero obrazów niż obraz w złym miejscu.`:`Pole "imageSlides" każdej sekcji zostaw jako pustą listę.`}
 W wartościach tekstowych NIE używaj prostego cudzysłowu " — cytaty zapisuj polskimi „ ". Nie zostawiaj przecinka po ostatnim elemencie listy ani obiektu.
 Zwróć WYŁĄCZNIE poprawny JSON (bez markdown, bez tekstu poza JSON):
-{"title":string,"intro":string (2-4 zdania streszczenia, bez powtarzania tytułu),"sections":[{"group":string,"heading":string,"lead":string,"points":string[],"examples":[{"label":string,"text":string}],"table":{"headers":string[],"rows":string[][]}|null,"imageSlides":number[]}],"studyQuestions":string[] (5-6 pytań otwartych do powtórki, obejmujących różne rozdziały)}
+{"title":string,"intro":string (2-4 zdania streszczenia całego wykładu: o czym jest i co student z niego wyniesie; bez powtarzania tytułu),"sections":[{"group":string,"heading":string,"lead":string,"points":string[],"examples":[{"label":string,"text":string}],"table":{"headers":string[],"rows":string[][]}|null,"imageSlides":number[]}]}
 Materiał (slajdy oznaczone [Slajd N]):
 """${txt.slice(0,60000)}"""`;
 
@@ -950,7 +953,7 @@ function renderHome(){
   const list=tab==="quizzes"?state.notes.filter(n=>n.quiz&&n.quiz.length):tab==="banks"?state.notes.filter(n=>n.bank&&n.bank.questions&&n.bank.questions.length):state.notes;
   const cards=list.length?list.map(n=>{
     const sub=esc((n.note.intro||n.note.summary||"").slice(0,120));
-    const bankPct=(n.bank&&n.bank.questions&&n.bank.questions.length)?Math.round(100*n.bank.questions.filter(x=>x.streak>=2).length/n.bank.questions.length):null;
+    const _bq=(n.bank&&n.bank.questions)?n.bank.questions.filter(x=>!x.skip):[]; const bankPct=_bq.length?Math.round(100*_bq.filter(x=>x.streak>=1).length/_bq.length):null;
     let meta,attr;
     if(tab==="quizzes"){ meta=`🧠 ${n.quiz.length} ${plural(n.quiz.length,"pytanie","pytania","pytań")} · ${new Date(n.created).toLocaleDateString("pl-PL")}`; attr=`data-hq="${n.id}"`; }
     else if(tab==="banks"){ meta=`🏦 ${n.bank.questions.length} ${plural(n.bank.questions.length,"pytanie","pytania","pytań")} · 🎯 opanowano ${bankPct}% · ${new Date(n.created).toLocaleDateString("pl-PL")}`; attr=`data-hb="${n.id}"`; }
@@ -1104,7 +1107,6 @@ function renderNote(){
         <button class="toolbtn" id="pdfBtn" title="Zapisz notatkę jako PDF">📄 Pobierz PDF</button>
       </div>
       ${bodyHtml}
-      ${(n.studyQuestions&&n.studyQuestions.length)?`<div class="h2sec">Pytania do powtórki</div><ol class="sq">${n.studyQuestions.map(q=>`<li>${esc(q)}</li>`).join("")}</ol>`:""}
       <div class="row" style="margin-top:26px"><button class="btn" id="goQuiz">🧠 ${entry.quiz?"Rozwiąż quiz":"Stwórz quiz z tej notatki"}</button></div>
     </div>`;
 
@@ -1138,12 +1140,12 @@ function renderBankPane(){
     <div class="qsetup">
       <div class="qbadge">🏦</div>
       <h2 class="qtitle">Bank pytań</h2>
-      <p class="qsub">${b?`${bs.total} ${plural(bs.total,"pytanie","pytania","pytań")} · opanowano <b>${bs.mastered}</b> (${bs.pct}%)`:"Pytania pokrywające 100% materiału tej notatki (zwykle 40-70)."}</p>
+      <p class="qsub">${b?`${bs.total} ${plural(bs.total,"pytanie","pytania","pytań")} · opanowano <b>${bs.mastered}</b> (${bs.pct}%)${bs.skipped?` · ${bs.skipped} pominięto`:""}`:"Pytania pokrywające 100% materiału tej notatki (zwykle 40-70)."}</p>
       ${b?`<div class="msbar" style="max-width:340px;margin:0 auto 18px"><div class="msfill" style="width:${bs.pct}%"></div></div>`:""}
       <div class="row" style="justify-content:center">
         ${b?`<button class="btn" id="msStart">▶ Ćwicz</button><button class="btn ghost" id="bankReset">↺ Resetuj postęp</button><button class="btn ghost" id="bankRegen">✨ Zbuduj od nowa</button>`:`<button class="btn" id="bankGen">✨ Zbuduj bank pytań</button>`}
       </div>
-      <p class="qopthint" style="max-width:430px;margin:16px auto 0">${b?"Pytanie znika z rotacji po 2 poprawnych odpowiedziach z rzędu, a błędne wracają częściej. Budowa od nowa zastąpi bank wraz z postępem.":"Aplikacja przejdzie notatkę sekcja po sekcji i ułoży pytania sprawdzające każdy fakt — tak, by dało się opanować 100% materiału."}</p>
+      <p class="qopthint" style="max-width:430px;margin:16px auto 0">${b?"Pytanie uznajemy za opanowane po 1 poprawnej odpowiedzi, a błędne wracają w kolejnych rundach. Pytania zbędne możesz trwale pominąć przyciskiem podczas nauki. Budowa od nowa zastąpi bank wraz z postępem.":"Aplikacja przejdzie notatkę sekcja po sekcji i ułoży pytania sprawdzające każdy fakt — tak, by dało się opanować 100% materiału."}</p>
       ${!aiAvailable()?`<div class="banner warn" style="margin-top:14px;text-align:left">⚠️ Aby budować bank, wpisz klucz API w <b>⚙ Ustawienia AI</b>.</div>`:""}
     </div>`;
   const bg=document.getElementById("bankGen"); if(bg) bg.onclick=()=>generateBank(entry);
@@ -1221,12 +1223,12 @@ async function generateBank(entry){
   state.view="bank"; renderNote();
   if(failed) setTimeout(()=>alert("Uwaga: "+failed+" sekcji nie udało się przepytać — możesz zbudować bank od nowa."),100);
 }
-function bankStats(entry){ const qs=entry.bank.questions; const m=qs.filter(x=>x.streak>=2).length; return {total:qs.length,mastered:m,pct:qs.length?Math.round(100*m/qs.length):0}; }
+function bankStats(entry){ const qs=entry.bank.questions.filter(x=>!x.skip); const m=qs.filter(x=>x.streak>=1).length; const skipped=entry.bank.questions.length-qs.length; return {total:qs.length,mastered:m,skipped:skipped,pct:qs.length?Math.round(100*m/qs.length):0}; }
 function startMastery(entry){
-  const pool=entry.bank.questions.map((qq,i)=>({qq,i})).filter(x=>x.qq.streak<2);
+  const pool=entry.bank.questions.map((qq,i)=>({qq,i})).filter(x=>!x.qq.skip&&x.qq.streak<1);
   if(!pool.length){
     const pane=document.getElementById("pane");
-    pane.innerHTML=`<div class="qsetup"><div class="qbadge big">🏆</div><h2 class="qtitle">Materiał opanowany!</h2><p class="qsub">Odpowiedziałeś poprawnie (2x z rzędu) na wszystkie ${entry.bank.questions.length} pytań z tej notatki.</p><div class="row" style="justify-content:center"><button class="btn ghost" id="msReset0">↺ Resetuj postęp i ćwicz od nowa</button><button class="btn ghost" id="msBack0">↩ Wróć</button></div></div>`;
+    pane.innerHTML=`<div class="qsetup"><div class="qbadge big">🏆</div><h2 class="qtitle">Materiał opanowany!</h2><p class="qsub">Opanowałeś wszystkie ${entry.bank.questions.filter(x=>!x.skip).length} pytań z tej notatki.${bankStats(entry).skipped?` (${bankStats(entry).skipped} pominięto)`:""}</p><div class="row" style="justify-content:center"><button class="btn ghost" id="msReset0">↺ Resetuj postęp i ćwicz od nowa</button><button class="btn ghost" id="msBack0">↩ Wróć</button></div></div>`;
     document.getElementById("msReset0").onclick=()=>{ entry.bank.questions.forEach(x=>{x.streak=0;x.wrong=0;x.seen=0;}); entry.updated=Date.now(); save(); syncSoon(); startMastery(entry); };
     document.getElementById("msBack0").onclick=()=>{ state.view="bank"; renderNote(); };
     return;
@@ -1253,7 +1255,7 @@ function renderMastery(entry){
       ${qq.options.map((o,oi)=>{ let cls="opt"; if(ms.revealed){ if(oi===qq.correct) cls+=" correct"; else if(oi===ms.picked) cls+=" wrong"; } else if(ms.picked===oi) cls+=" sel"; return `<div class="${cls}" data-oi="${oi}"><span class="mk">${ms.revealed&&oi===qq.correct?"✓":ms.revealed&&oi===ms.picked?"✗":""}</span><span class="ot">${esc(o)}</span></div>`; }).join("")}
       ${ms.revealed&&qq.explanation?`<div class="exp">${esc(qq.explanation)}</div>`:""}
     </div>
-    <div class="row"><button class="btn" id="msCheck" ${ms.picked==null?"disabled":""}>${ms.revealed?"Dalej →":"Sprawdź"}</button><button class="btn ghost" id="msQuit">Zakończ rundę</button></div>`;
+    <div class="row"><button class="btn" id="msCheck" ${ms.picked==null?"disabled":""}>${ms.revealed?"Dalej →":"Sprawdź"}</button><button class="btn ghost" id="msSkip" title="Usuń to pytanie z banku na stałe">🚫 Pomiń pytanie</button><button class="btn ghost" id="msQuit">Zakończ rundę</button></div>`;
   if(!ms.revealed) pane.querySelectorAll(".opt").forEach(el=>el.onclick=()=>{ ms.picked=+el.getAttribute("data-oi"); renderMastery(entry); });
   document.getElementById("msCheck").onclick=()=>{
     if(!ms.revealed){
@@ -1263,6 +1265,12 @@ function renderMastery(entry){
     } else { ms.pos++; ms.picked=null; ms.revealed=false; renderMastery(entry); }
   };
   document.getElementById("msQuit").onclick=()=>{ state.view="bank"; renderNote(); };
+  document.getElementById("msSkip").onclick=()=>{
+    if(!confirm("Trwale pominąć to pytanie? Zniknie z banku i nie będzie liczone do postępu.")) return;
+    qq.skip=true; entry.updated=Date.now(); save(); syncSoon();
+    ms.idx.splice(ms.pos,1); if(ms.pos>=ms.idx.length){ if(!ms.idx.length){ state.view="bank"; renderNote(); return; } }
+    ms.picked=null; ms.revealed=false; renderMastery(entry);
+  };
 }
 
 async function requestQuiz(count){
