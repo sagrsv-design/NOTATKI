@@ -250,6 +250,8 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .hcard p{margin:0 0 7px;color:var(--muted);font-size:13px;line-height:1.45;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .hmeta{font-size:12px;color:var(--muted)}
 .hchev{font-size:26px;color:#bdbdb9;flex:none;line-height:1}
+.hdel{flex:none;border:none;background:transparent;color:#c0c0bb;font-size:18px;line-height:1;padding:8px;border-radius:10px;cursor:pointer;transition:.12s}
+.hdel:hover{color:var(--bad);background:var(--bad-soft)}
 .hempty{color:var(--muted);font-size:14px;text-align:center;padding:40px 10px;background:linear-gradient(135deg,rgba(255,255,255,.6),rgba(255,255,255,.4));border:1px dashed var(--border);border-radius:20px}
 .haddwrap{position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom));display:flex;justify-content:center;pointer-events:none;z-index:30}
 .hadd{pointer-events:auto;background:linear-gradient(135deg,var(--accent-2),var(--accent));color:#fff;border:none;padding:15px 30px;border-radius:999px;font-weight:700;font-size:15px;box-shadow:0 14px 34px rgba(40,70,58,.35),inset 0 1px 0 rgba(255,255,255,.18);transition:.15s}
@@ -953,7 +955,7 @@ function renderHome(){
     if(tab==="quizzes"){ meta=`🧠 ${n.quiz.length} ${plural(n.quiz.length,"pytanie","pytania","pytań")} · ${new Date(n.created).toLocaleDateString("pl-PL")}`; attr=`data-hq="${n.id}"`; }
     else if(tab==="banks"){ meta=`🏦 ${n.bank.questions.length} ${plural(n.bank.questions.length,"pytanie","pytania","pytań")} · 🎯 opanowano ${bankPct}% · ${new Date(n.created).toLocaleDateString("pl-PL")}`; attr=`data-hb="${n.id}"`; }
     else { meta=[new Date(n.created).toLocaleDateString("pl-PL"),`${wordCount(n.note)} słów`,n.quiz?"🧠 quiz":"",bankPct!=null?`🏦 ${bankPct}%`:""].filter(Boolean).join(" · "); attr=`data-hn="${n.id}"`; }
-    return `<div class="hcard" ${attr}><div class="hbody"><h4>${esc(n.note.title||"Bez tytułu")}</h4><p>${sub}…</p><div class="hmeta">${meta}</div></div><span class="hchev">›</span></div>`;
+    return `<div class="hcard" ${attr}><div class="hbody"><h4>${esc(n.note.title||"Bez tytułu")}</h4><p>${sub}…</p><div class="hmeta">${meta}</div></div><button class="hdel" data-hdel="${n.id}" title="Usuń notatkę">🗑</button><span class="hchev">›</span></div>`;
   }).join(""):`<div class="hempty">${tab==="quizzes"?"Brak quizów. Otwórz notatkę i kliknij „Stwórz quiz”.":tab==="banks"?"Brak banków pytań. Otwórz notatkę → zakładka 🏦 Bank → ✨ Zbuduj bank.":"Brak notatek. Dodaj pierwszą przyciskiem na dole."}</div>`;
   content.innerHTML=`
     <div class="home">
@@ -969,9 +971,10 @@ function renderHome(){
       <div class="haddwrap"><button class="hadd" id="homeNew">＋ Dodaj notatkę</button></div>
     </div>`;
   content.querySelectorAll("[data-ht]").forEach(b=>b.onclick=()=>{ state.libTab=b.getAttribute("data-ht"); renderHome(); });
-  content.querySelectorAll("[data-hn]").forEach(el=>el.onclick=()=>openNote(el.getAttribute("data-hn")));
-  content.querySelectorAll("[data-hq]").forEach(el=>el.onclick=()=>{ state.currentId=el.getAttribute("data-hq"); state.qz=null; state.view="quiz"; renderNote(); });
-  content.querySelectorAll("[data-hb]").forEach(el=>el.onclick=()=>{ state.currentId=el.getAttribute("data-hb"); state.qz=null; state.view="bank"; renderNote(); });
+  content.querySelectorAll("[data-hdel]").forEach(b=>b.onclick=e=>{ e.stopPropagation(); delNote(b.getAttribute("data-hdel")); });
+  content.querySelectorAll("[data-hn]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-hdel]")) return; openNote(el.getAttribute("data-hn")); });
+  content.querySelectorAll("[data-hq]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-hdel]")) return; state.currentId=el.getAttribute("data-hq"); state.qz=null; state.view="quiz"; renderNote(); });
+  content.querySelectorAll("[data-hb]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-hdel]")) return; state.currentId=el.getAttribute("data-hb"); state.qz=null; state.view="bank"; renderNote(); });
   document.getElementById("homeNew").onclick=()=>{ state.draft={title:"",text:"",fileName:"",images:[]}; renderInput(); };
 }
 
