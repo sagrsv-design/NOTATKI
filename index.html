@@ -604,13 +604,13 @@ async function ask(prompt,maxTok,role){
   }
   if(c.provider==="gemini"&&c.gmKey){
     return await http("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(model)+":generateContent?key="+encodeURIComponent(c.gmKey),
-      {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:maxTok||8192}})},
+      {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:(maxTok&&maxTok<=4000)?maxTok:32768}})},
       d=>{ const cand=d&&d.candidates&&d.candidates[0]; const txt=(cand&&cand.content&&cand.content.parts)?cand.content.parts.map(x=>x.text||"").join(""):""; if(!txt) throw new Error("Pusta odpowiedź Gemini"+((cand&&cand.finishReason)?" ("+cand.finishReason+")":"")+"."); return txt; });
   }
   if(c.provider==="openrouter"&&c.orKey){
     if(!model) throw new Error("Ustaw identyfikator modelu OpenRouter w ⚙ Ustawieniach.");
     return await http("https://openrouter.ai/api/v1/chat/completions",
-      {method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+c.orKey},body:JSON.stringify({model,messages:[{role:"user",content:prompt}],max_tokens:maxTok||8000})},
+      {method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+c.orKey},body:JSON.stringify({model,messages:[{role:"user",content:prompt}],max_tokens:(maxTok&&maxTok<=4000)?maxTok:16000})},
       d=>{ const t=d&&d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content; if(!t) throw new Error("Pusta odpowiedź OpenRouter (model przeciążony?)."); return t; });
   }
   if(c.apiKey){
