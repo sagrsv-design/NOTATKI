@@ -611,9 +611,31 @@ async function ask(prompt,maxTok,role){
     const hdrs={"content-type":"application/json"};
     let tok=null; try{ if(typeof loggedIn==="function"&&loggedIn()) tok=await freshToken(); }catch(e){}
     if(tok) hdrs["authorization"]="Bearer "+tok; else hdrs["x-app-key"]=c.wSecret||"";
-    return await http(c.wUrl.replace(/\/+$/,""),
-      {method:"POST",headers:hdrs,body:JSON.stringify({prompt,model,maxTokens:maxTok||8000})},
-      d=>{ if(d&&d.error) throw new Error(String(d.error)); return (d&&d.text)||""; });
+    let r; try{ r=await fetch(c.wUrl.replace(/\/+$/,""),{method:"POST",headers:hdrs,body:JSON.stringify({prompt,model,maxTokens:maxTok||8000})}); }
+    catch(e){ throw new Error("Brak połączenia z Workerem — sprawdź internet i adres."); }
+    const ct=(r.headers.get("content-type")||"");
+    if(!r.ok || ct.indexOf("event-stream")<0){
+      let d=null; try{ d=await r.json(); }catch(e){}
+      const msg=(d&&(d.error||d.message))||("HTTP "+r.status+(r.status===524?" — generowanie przekroczyło limit czasu, spróbuj ponownie lub wybierz szybszy model":""));
+      throw new Error(typeof msg==="string"?msg:JSON.stringify(msg));
+    }
+    // strumień SSE Anthropic → sklejamy tekst
+    const reader=r.body.getReader(); const dec=new TextDecoder(); let buf="",out="";
+    while(true){
+      const {done,value}=await reader.read(); if(done) break;
+      buf+=dec.decode(value,{stream:true});
+      let nl; while((nl=buf.indexOf("\n"))>=0){
+        const line=buf.slice(0,nl); buf=buf.slice(nl+1);
+        if(line.indexOf("data:")!==0) continue;
+        const payload=line.slice(5).trim(); if(!payload||payload==="[DONE]") continue;
+        try{ const ev=JSON.parse(payload);
+          if(ev.type==="content_block_delta"&&ev.delta&&ev.delta.text) out+=ev.delta.text;
+          else if(ev.type==="error") throw new Error((ev.error&&ev.error.message)||"Błąd strumienia AI.");
+        }catch(e){ if(e instanceof SyntaxError) continue; throw e; }
+      }
+    }
+    if(!out) throw new Error("Worker zwrócił pustą odpowiedź.");
+    return out;
   }
   if(c.provider==="gemini"&&c.gmKey){
     return await http("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(model)+":generateContent?key="+encodeURIComponent(c.gmKey),
@@ -1039,7 +1061,12 @@ async function onGenerate(){
     const _lo=Math.round(_hi*0.7);
     const _boost=(_prov==="gemini"||_prov==="openrouter")?`
 
-KLUCZOWE — OBJĘTOŚĆ I DOKŁADNOŚĆ: nie skracaj notatki. Punkt sekcji to 1-2 pełne zdania wyjaśnienia (nie równoważniki zdań); dawaj 4-7 punktów tam, gdzie materiał ma na to pokrycie — sekcji ubogich w treść nie rozdmuchuj, tylko łącz z pokrewnymi. Notatka ma wystarczyć do nauki BEZ wracania do slajdów po szczegóły. Orientacyjna długość dla TEGO materiału: ${_lo}-${_hi} słów — objętość ma pochodzić z dokładności opracowania źródła, NIGDY z lania wody, powtórzeń ani dopisywania treści spoza materiału.`:"";
+KLUCZOWE — OBJĘTOŚĆ I DOKŁADNOŚĆ: nie skracaj notatki. Punkt sekcji to 1-2 pełne zdania wyjaśnienia (nie równoważniki zdań); dawaj 4-7 punktów tam, gdzie materiał ma na to pokrycie — sekcji ubogich w treść nie rozdmuchuj, tylko łącz z pokrewnymi. Notatka ma wystarczyć do nauki BEZ wracania do slajdów po szczegóły. Orientacyjna długość dla TEGO materiału: ${_lo}-${_hi} słów — objętość ma pochodzić z dokładności opracowania źródła, NIGDY z lania wody, powtórzeń ani dopisywania treści spoza materiału.
+
+WZORZEC JAKOŚCI (tak ma wyglądać Twój output — zwróć uwagę na: syntezę zasady ogólnej przed wyjątkami, chirurgiczne pogrubienie tylko terminu egzaminacyjnego, definicję w złotym środku „pojęcie + mechanizm + skutek", przypadki jako examples):
+{"group":"Płaty kory mózgowej","heading":"Płat skroniowy","lead":"Odpowiada za percepcję słuchową, rozumienie mowy, pamięć semantyczną i rozpoznawanie obiektów. Język przetwarza tu niemal 100% praworęcznych i ~80% leworęcznych.","points":["**Pamięć semantyczna:** magazyn wiedzy o świecie — umożliwia kategoryzację, rozpoznawanie przedmiotów, twarzy i mimiki.","**Afazja Wernickego (czuciowa):** uszkodzenie lewego płata — mowa płynna, ale niezrozumiała, przy utracie rozumienia cudzych wypowiedzi.","**Aprozodia:** utrata zdolności odczytywania i nadawania emocjonalnej melodii mowy."],"examples":[{"label":"Przypadek H.M.","text":"Po obustronnym usunięciu głębokich części płatów skroniowych pacjent stracił zdolność tworzenia nowych wspomnień, dowodząc roli tych struktur w pamięci."}],"table":null,"imageSlides":[]}
+A oto przykład SYNTEZY zamiast przepisywania tabeli (gdy wiele elementów rządzi się wspólną zasadą — podaj zasadę w leadzie, a w tabeli zostaw tylko wyjątki):
+{"group":"Unaczynienie","heading":"Unaczynienie mózgu","lead":"Z lokalizacji udaru można przewidzieć deficyty. Zasada ogólna: powierzchnie boczne płatów żywi tętnica środkowa, przyśrodkowe — przednia, a tył mózgu — tylna.","points":[],"examples":[],"table":{"headers":["Obszar (wyjątki)","Tętnica"],"rows":[["Płat skroniowy (przyśrodkowa)","Środkowa, tylna, przednia naczyniówkowa, łącząca tylna"],["Hipokamp","Naczyniówkowa przednia + gałęzie tylnej"]]},"imageSlides":[]}`:"";
     const note=await askJson(NOTE_PROMPT(src,imgSlides)+_boost);
     if(f.title) note.title=f.title;
     note.sections=note.sections||[]; note.studyQuestions=note.studyQuestions||[];
