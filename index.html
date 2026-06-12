@@ -252,13 +252,17 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .hcard p{margin:0 0 7px;color:var(--muted);font-size:13px;line-height:1.45;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .hmeta{font-size:12px;color:var(--muted)}
 .hchev{font-size:26px;color:#bdbdb9;flex:none;line-height:1}
-.hdel{flex:none;border:none;background:transparent;color:#c0c0bb;font-size:18px;line-height:1;padding:8px;border-radius:10px;cursor:pointer;transition:.12s}
+.hdel{flex:none;border:none;background:transparent;color:#c8c8c3;font-size:13px;line-height:1;padding:5px;border-radius:8px;cursor:pointer;transition:.12s;opacity:.6}
 .hdel:hover{color:var(--bad);background:var(--bad-soft)}
 .hempty{color:var(--muted);font-size:14px;text-align:center;padding:40px 10px;background:linear-gradient(135deg,rgba(255,255,255,.6),rgba(255,255,255,.4));border:1px dashed var(--border);border-radius:20px}
 .haddwrap{position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom));display:flex;justify-content:center;pointer-events:none;z-index:30}
 .hadd{pointer-events:auto;background:linear-gradient(135deg,var(--accent-2),var(--accent));color:#fff;border:none;padding:15px 30px;border-radius:999px;font-weight:700;font-size:15px;box-shadow:0 14px 34px rgba(40,70,58,.35),inset 0 1px 0 rgba(255,255,255,.18);transition:.15s}
 .hadd:hover{transform:translateY(-1px);box-shadow:0 18px 40px rgba(40,70,58,.42)}
 .titledit{border:none;background:transparent;font-size:15px;margin-left:6px;opacity:.45;cursor:pointer;vertical-align:middle}
+.addbox{display:flex;flex-direction:column;gap:2px;background:linear-gradient(135deg,rgba(255,255,255,.7),rgba(255,255,255,.5));border:1px solid rgba(255,255,255,.65);border-radius:14px;padding:8px 12px;margin-bottom:12px}
+.addrow{display:flex;align-items:center;gap:9px;padding:8px 4px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--border)}
+.addrow:last-child{border-bottom:none}
+.addrow input{width:17px;height:17px;accent-color:var(--accent)}
 .titledit:hover{opacity:1}
 @media(max-width:720px){
   .hello{margin-top:2px}
@@ -304,7 +308,6 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
       <div class="tb-brand"><div class="logo sm">N</div><b>NotatkiAI</b></div>
       <div class="tb-actions">
         <button class="tb-btn" id="authBtn" title="Konto">👤</button>
-        <button class="tb-btn" id="syncPill" title="Synchronizuj z chmurą">☁️</button>
         <button class="tb-btn" id="tbImport" title="Importuj notatkę z pliku">⬇</button>
         <button class="tb-btn" id="cfgBtnTop" title="Ustawienia AI">⚙</button>
       </div>
@@ -386,12 +389,6 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
     <label class="cfglbl">Kopia zapasowa (wszystkie notatki, quizy i banki z postępem)</label>
     <div class="row" style="margin-top:2px"><button class="btn ghost" id="bkExport">📦 Eksportuj wszystko</button><button class="btn ghost" id="bkImport">📥 Przywróć kopię</button></div>
     <input type="file" id="bkFile" accept=".json,application/json" class="hidden">
-    <label class="cfglbl">☁️ Chmura GitHub (synchronizacja PC ↔ telefon)</label>
-    <p class="cfghint" style="margin-bottom:8px">Utwórz <b>prywatne</b> repozytorium (np. notatki-dane) i token fine-grained z uprawnieniem Contents: Read and write tylko do tego repo.</p>
-    <input type="text" id="cfgGhRepo" class="titlefield" placeholder="użytkownik/notatki-dane" style="margin-bottom:8px">
-    <div class="cfgrow"><input type="password" id="cfgGhToken" class="titlefield" placeholder="github_pat_..." style="margin:0"><button class="toolbtn" id="cfgGhEye" title="Pokaż/ukryj">👁</button></div>
-    <div class="row" style="margin-top:8px"><button class="btn ghost" id="cfgGhSync">☁️ Połącz i synchronizuj</button></div>
-    <div id="cfgSyncStatus" style="font-size:13px;margin-top:8px;color:var(--muted)"></div>
   </div>
 </div>
 
@@ -419,7 +416,11 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 <script>
 "use strict";
 const LS_KEY="notatkiai.notes.v4";
-const state={notes:[],currentId:null,view:"input",libTab:"notes",draft:{title:"",text:"",fileName:"",images:[]},quizCfg:{count:8,rogue:false},qz:null};
+const state={notes:[],currentId:null,view:"input",libTab:"notes",sekcje:[],draft:{title:"",text:"",fileName:"",images:[]},quizCfg:{count:8,rogue:false},qz:null};
+const SEK_KEY="notatkiai.sekcje.v1";
+function loadSekcje(){ try{ const o=JSON.parse(localStorage.getItem(SEK_KEY)); if(Array.isArray(o)){ state.sekcje=o; state.sekUpdated=0; } else { state.sekcje=(o&&o.sekcje)||[]; state.sekUpdated=(o&&o.updated)||0; } }catch(e){ state.sekcje=[]; state.sekUpdated=0; } }
+function saveSekcje(){ state.sekUpdated=Date.now(); try{ localStorage.setItem(SEK_KEY,JSON.stringify({sekcje:state.sekcje,updated:state.sekUpdated})); }catch(e){} if(loggedIn()) syncSoon(); }
+function sekStats(sk){ let total=0,mastered=0; (sk.noteIds||[]).forEach(id=>{ const n=state.notes.find(x=>x.id===id); if(n&&n.bank&&n.bank.questions){ const qs=n.bank.questions.filter(q=>!q.skip); total+=qs.length; mastered+=qs.filter(q=>q.streak>=1).length; } }); return {total,mastered,pct:total?Math.round(100*mastered/total):0}; }
 
 const DB_NAME="notatkiai_db", STORE="notes";
 let _idbOk=(typeof indexedDB!=="undefined" && !!indexedDB);
@@ -573,7 +574,7 @@ const GMODELS=[
   {id:"gemini-2.5-flash-lite",label:"Gemini 2.5 Flash-Lite — najszybszy"}
 ];
 const CFG_KEY="notatkiai.cfg";
-function getCfg(){ try{ return Object.assign({provider:"anthropic",apiKey:"",model:"claude-sonnet-4-6",quizModel:"claude-haiku-4-5-20251001",gmKey:"",gmModel:"gemini-2.5-flash",gmQuizModel:"gemini-2.5-flash",orKey:"",orModel:"",orQuizModel:"",wUrl:"",wSecret:"",ghToken:"",ghRepo:""},JSON.parse(localStorage.getItem(CFG_KEY)||"{}")); }catch(e){ return {provider:"anthropic",apiKey:"",model:"claude-sonnet-4-6",quizModel:"claude-haiku-4-5-20251001",gmKey:"",gmModel:"gemini-2.5-flash",gmQuizModel:"gemini-2.5-flash",orKey:"",orModel:"",orQuizModel:"",wUrl:"",wSecret:"",ghToken:"",ghRepo:""}; } }
+function getCfg(){ try{ return Object.assign({provider:"anthropic",apiKey:"",model:"claude-sonnet-4-6",quizModel:"claude-haiku-4-5-20251001",gmKey:"",gmModel:"gemini-2.5-flash",gmQuizModel:"gemini-2.5-flash",orKey:"",orModel:"",orQuizModel:"",wUrl:"",wSecret:""},JSON.parse(localStorage.getItem(CFG_KEY)||"{}")); }catch(e){ return {provider:"anthropic",apiKey:"",model:"claude-sonnet-4-6",quizModel:"claude-haiku-4-5-20251001",gmKey:"",gmModel:"gemini-2.5-flash",gmQuizModel:"gemini-2.5-flash",orKey:"",orModel:"",orQuizModel:"",wUrl:"",wSecret:""}; } }
 function setCfg(c){ try{ localStorage.setItem(CFG_KEY,JSON.stringify(c)); }catch(e){} }
 function aiAvailable(){
   const c=getCfg();
@@ -817,7 +818,7 @@ async function supaSync(){
   const remote=await supaRest("notes?select=id,updated")||[];
   const rmap={}; remote.forEach(x=>{ rmap[x.id]=+x.updated||0; });
   let pulled=0,pushed=0;
-  const needPull=Object.keys(rmap).filter(id=>{ const l=state.notes.find(n=>n.id===id); const lu=l?(l.updated||l.created||0):-1; return rmap[id]>lu; });
+  const needPull=Object.keys(rmap).filter(id=>{ if(id==="__sekcje__") return false; const l=state.notes.find(n=>n.id===id); const lu=l?(l.updated||l.created||0):-1; return rmap[id]>lu; });
   for(let i=0;i<needPull.length;i+=8){
     const chunk=needPull.slice(i,i+8);
     const rows=await supaRest("notes?select=id,data,updated&id=in.("+chunk.map(encodeURIComponent).join(",")+")")||[];
@@ -829,99 +830,34 @@ async function supaSync(){
     await supaRest("notes",{method:"POST",headers:{"prefer":"resolution=merge-duplicates"},body:JSON.stringify(chunk)});
     pushed+=chunk.length;
   }
+  // --- Sekcje jako osobny rekord ---
+  let sekChanged=false;
+  const rSek=rmap["__sekcje__"]||-1, lSek=state.sekUpdated||0;
+  if(rSek>lSek){
+    const rows=await supaRest("notes?select=data,updated&id=eq.__sekcje__")||[];
+    if(rows[0]&&rows[0].data&&Array.isArray(rows[0].data.sekcje)){ state.sekcje=rows[0].data.sekcje; state.sekUpdated=+rows[0].updated||Date.now(); try{ localStorage.setItem(SEK_KEY,JSON.stringify({sekcje:state.sekcje,updated:state.sekUpdated})); }catch(e){} sekChanged=true; pulled++; }
+  } else if(lSek>rSek){
+    await supaRest("notes",{method:"POST",headers:{"prefer":"resolution=merge-duplicates"},body:JSON.stringify([{id:"__sekcje__",data:{sekcje:state.sekcje},updated:lSek}])});
+    pushed++;
+  }
   if(pulled){ state.notes.sort((a,b)=>(b.created||0)-(a.created||0)); save(); if(state.view==="home") renderHome(); else renderLib(); }
+  else if(sekChanged && state.view==="home") renderHome();
   return {pulled:pulled,pushed:pushed};
 }
 async function deleteRemote(id){
-  if(loggedIn()){ try{ await supaRest("notes?id=eq."+encodeURIComponent(id),{method:"DELETE"}); }catch(e){} return; }
-  ghDeleteNote(id);
+  if(loggedIn()){ try{ await supaRest("notes?id=eq."+encodeURIComponent(id),{method:"DELETE"}); }catch(e){} }
 }
 
-/* ---------- Synchronizacja GitHub ---------- */
+/* ---------- Synchronizacja (tylko konto) ---------- */
 let syncBusy=false, syncTimer=null;
-function syncConfigured(){ const c=getCfg(); return !!(c.ghToken&&c.ghRepo&&c.ghRepo.includes("/")); }
-function utf8b64(str){ return bytesToB64(new TextEncoder().encode(str)); }
-function b64utf8(b){ b=(b||"").replace(/\s/g,""); const bin=atob(b); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i); return new TextDecoder().decode(arr); }
-async function ghReq(path,method,body){
-  const c=getCfg();
-  return await fetch("https://api.github.com/"+path,{method:method||"GET",headers:{"authorization":"Bearer "+(c.ghToken||"").trim(),"accept":"application/vnd.github+json","content-type":"application/json"},body:body?JSON.stringify(body):undefined});
-}
-async function ghErr(r){ try{ const j=await r.json(); return j.message||("HTTP "+r.status); }catch(e){ return "HTTP "+r.status; } }
-function setSyncMsg(t,reset){
-  const el=document.getElementById("syncPill");
-  if(el){
-    let icon="☁️";
-    if(t.indexOf("Błąd")>=0) icon="☁️ ✗"; else if(t.indexOf("Zsynchronizowano")>=0) icon="☁️ ✓"; else if(t.indexOf("Synchronizuję")>=0) icon="☁️ …";
-    el.textContent=icon; el.title=t;
-    if(reset) setTimeout(()=>{ const e2=document.getElementById("syncPill"); if(e2){ e2.textContent="☁️"; e2.title="Synchronizuj z chmurą GitHub"; } },5000);
-  }
-  const st=document.getElementById("cfgSyncStatus"); if(st) st.textContent=t;
-}
-function syncSoon(){ if(!loggedIn()&&!syncConfigured()) return; clearTimeout(syncTimer); syncTimer=setTimeout(()=>syncNow(false),4000); }
+function setSyncMsg(t){ const st=document.getElementById("authStatus"); if(st&&t) st.textContent=t; }
+function syncSoon(){ if(!loggedIn()) return; clearTimeout(syncTimer); syncTimer=setTimeout(()=>syncNow(false),4000); }
 async function syncNow(manual){
-  if(syncBusy) return;
-  if(loggedIn()){
-    syncBusy=true; setSyncMsg("☁️ Synchronizuję…");
-    try{ const r=await supaSync(); setSyncMsg("☁️ Zsynchronizowano"+((r.pulled||r.pushed)?" (↓"+r.pulled+" ↑"+r.pushed+")":" ✓"),true); }
-    catch(e){ setSyncMsg("☁️ Błąd: "+e.message,true); if(manual) alert("Synchronizacja nieudana: "+e.message); }
-    syncBusy=false; return;
-  }
-  if(!syncConfigured()) return;
-  syncBusy=true; setSyncMsg("☁️ Synchronizuję…");
-  try{
-    const repo=getCfg().ghRepo.trim();
-    const listR=await ghReq("repos/"+repo+"/contents/notes");
-    let files=[];
-    if(listR.status===200) files=await listR.json();
-    else if(listR.status!==404) throw new Error(await ghErr(listR));
-    const bySha={}; (files||[]).forEach(f=>{ if(f.name&&f.name.endsWith(".json")) bySha[f.name]=f.sha; });
-    let index={}, indexSha=null;
-    const ixR=await ghReq("repos/"+repo+"/contents/index.json");
-    if(ixR.status===200){ const j=await ixR.json(); indexSha=j.sha; try{ index=JSON.parse(b64utf8(j.content))||{}; }catch(e){ index={}; } }
-    else if(ixR.status!==404) throw new Error(await ghErr(ixR));
-    let pulled=0,pushed=0;
-    for(const id of Object.keys(index)){
-      const sha=bySha[id+".json"]; if(!sha) continue;
-      const local=state.notes.find(n=>n.id===id);
-      const lu=local?(local.updated||local.created||0):-1;
-      if(index[id]>lu){
-        const bR=await ghReq("repos/"+repo+"/git/blobs/"+sha);
-        if(bR.status!==200) continue;
-        const bj=await bR.json();
-        try{ const entry=JSON.parse(b64utf8(bj.content)); if(entry&&entry.id===id&&entry.note){ const i=state.notes.findIndex(n=>n.id===id); if(i>=0) state.notes[i]=entry; else state.notes.push(entry); pulled++; } }catch(e){}
-      }
-    }
-    for(const n of state.notes){
-      if(n.id==="demo-neuro-1") continue;
-      const lu=n.updated||n.created||0;
-      if(!(n.id in index)||lu>index[n.id]){
-        const body={message:"sync: "+(n.note&&n.note.title||n.id),content:utf8b64(JSON.stringify(n))};
-        if(bySha[n.id+".json"]) body.sha=bySha[n.id+".json"];
-        const pR=await ghReq("repos/"+repo+"/contents/notes/"+encodeURIComponent(n.id)+".json","PUT",body);
-        if(pR.status===200||pR.status===201){ index[n.id]=lu; pushed++; }
-        else throw new Error(await ghErr(pR));
-      }
-    }
-    if(pulled||pushed||indexSha===null){
-      const ib={message:"sync: index",content:utf8b64(JSON.stringify(index))}; if(indexSha) ib.sha=indexSha;
-      const iR=await ghReq("repos/"+repo+"/contents/index.json","PUT",ib);
-      if(!(iR.status===200||iR.status===201)) throw new Error(await ghErr(iR));
-    }
-    if(pulled){ state.notes.sort((a,b)=>(b.created||0)-(a.created||0)); save(); if(state.view==="home") renderHome(); else renderLib(); }
-    setSyncMsg("☁️ Zsynchronizowano"+((pulled||pushed)?" (↓"+pulled+" ↑"+pushed+")":" ✓"),true);
-  }catch(e){ setSyncMsg("☁️ Błąd: "+e.message,true); if(manual) alert("Synchronizacja nieudana: "+e.message); }
+  if(syncBusy||!loggedIn()) return;
+  syncBusy=true;
+  try{ await supaSync(); }
+  catch(e){ if(manual) alert("Synchronizacja nieudana: "+e.message); }
   syncBusy=false;
-}
-async function ghDeleteNote(id){
-  if(!syncConfigured()) return;
-  try{
-    const repo=getCfg().ghRepo.trim();
-    const fR=await ghReq("repos/"+repo+"/contents/notes/"+encodeURIComponent(id)+".json");
-    if(fR.status===200){ const j=await fR.json(); await ghReq("repos/"+repo+"/contents/notes/"+encodeURIComponent(id)+".json","DELETE",{message:"del "+id,sha:j.sha}); }
-    const ixR=await ghReq("repos/"+repo+"/contents/index.json");
-    if(ixR.status===200){ const j=await ixR.json(); let ix={}; try{ ix=JSON.parse(b64utf8(j.content))||{}; }catch(e){}
-      if(id in ix){ delete ix[id]; await ghReq("repos/"+repo+"/contents/index.json","PUT",{message:"del index "+id,content:utf8b64(JSON.stringify(ix)),sha:j.sha}); } }
-  }catch(e){}
 }
 
 const NOTE_PROMPT=(txt,imgSlides,imgDesc)=>`Jesteś najlepszym studentem na roku, który robi notatki, z których uczy się cała grupa przed egzaminem. Na podstawie materiału z wykładu stwórz notatkę PO POLSKU, która sama wystarczy do nauki — bez sięgania po oryginalne slajdy.
@@ -1046,7 +982,6 @@ function setupChrome(){
   const nw=()=>{ state.draft={title:"",text:"",fileName:"",images:[]}; closeDrawer(); renderInput(); };
   const a=document.getElementById("mnNew"); if(a) a.onclick=nw;
   const b=document.getElementById("drawerNew"); if(b) b.onclick=nw;
-  const sy=document.getElementById("syncPill"); if(sy) sy.onclick=()=>{ if(!syncConfigured()){ alert("Najpierw skonfiguruj chmurę: ⚙ Ustawienia → ☁️ Chmura GitHub."); document.getElementById("cfgBtnTop").click(); } else syncNow(true); };
   const ti=document.getElementById("tbImport"); if(ti) ti.onclick=()=>document.getElementById("importInput").click();
   const ab=document.getElementById("authBtn"); if(ab) ab.onclick=()=>{ if(window._openAuth) window._openAuth(); };
 }
@@ -1057,7 +992,31 @@ function renderHome(){
   const qn=state.notes.filter(n=>n.quiz&&n.quiz.length).length;
   const bn=state.notes.filter(n=>n.bank&&n.bank.questions&&n.bank.questions.length).length;
   const today=new Date().toLocaleDateString("pl-PL",{weekday:"long",day:"numeric",month:"long"});
-  const tab=state.libTab==="quizzes"?"quizzes":state.libTab==="banks"?"banks":"notes";
+  const tab=["quizzes","banks","sekcje"].indexOf(state.libTab)>=0?state.libTab:"notes";
+  const sn=state.sekcje.length;
+  if(tab==="sekcje"){
+    const skCards=state.sekcje.length?state.sekcje.map(sk=>{ const st=sekStats(sk); const nb=(sk.noteIds||[]).filter(id=>{const n=state.notes.find(x=>x.id===id);return n&&n.bank&&n.bank.questions&&n.bank.questions.length;}).length;
+      return `<div class="hcard" data-hsk="${sk.id}"><div class="hbody"><h4>${esc(sk.name)}</h4><p>${nb} ${plural(nb,"bank","banki","banków")} · ${st.total} ${plural(st.total,"pytanie","pytania","pytań")}…</p><div class="hmeta">🎯 opanowano ${st.mastered}/${st.total} (${st.pct}%)</div></div><button class="hdel" data-skdel="${sk.id}" title="Usuń sekcję">🗑</button><span class="hchev">›</span></div>`;
+    }).join(""):`<div class="hempty">Brak sekcji. Utwórz sekcję, by połączyć kilka banków pytań i uczyć się ich razem.</div>`;
+    content.innerHTML=`
+    <div class="home">
+      <h1 class="hello">Witaj w kolonii</h1>
+      <div class="hellosub">${today} · ${state.notes.length} ${plural(state.notes.length,"notatka","notatki","notatek")} · ${qn} ${plural(qn,"quiz","quizy","quizów")} · ${bn} ${plural(bn,"bank","banki","banków")}</div>
+      <div class="htabs">
+        <button class="htab" data-ht="notes">📄 Notatki<span class="cnt">${state.notes.length}</span></button>
+        <button class="htab" data-ht="quizzes">🧠 Quizy<span class="cnt">${qn}</span></button>
+        <button class="htab" data-ht="banks">🏦 Bank<span class="cnt">${bn}</span></button>
+        <button class="htab active" data-ht="sekcje">📚 Sekcje<span class="cnt">${sn}</span></button>
+      </div>
+      <div class="hlist">${skCards}</div>
+      <div class="haddwrap"><button class="hadd" id="homeNewSek">＋ Nowa sekcja</button></div>
+    </div>`;
+    content.querySelectorAll("[data-ht]").forEach(b=>b.onclick=()=>{ state.libTab=b.getAttribute("data-ht"); renderHome(); });
+    content.querySelectorAll("[data-skdel]").forEach(b=>b.onclick=e=>{ e.stopPropagation(); if(confirm("Usunąć tę sekcję? (notatki i banki pozostaną)")){ state.sekcje=state.sekcje.filter(x=>x.id!==b.getAttribute("data-skdel")); saveSekcje(); renderHome(); } });
+    content.querySelectorAll("[data-hsk]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-skdel]")) return; openSekcja(el.getAttribute("data-hsk")); });
+    document.getElementById("homeNewSek").onclick=()=>{ const name=(prompt("Nazwa nowej sekcji:")||"").trim(); if(!name) return; const sk={id:uid(),name,noteIds:[]}; state.sekcje.unshift(sk); saveSekcje(); openSekcja(sk.id); };
+    return;
+  }
   const list=tab==="quizzes"?state.notes.filter(n=>n.quiz&&n.quiz.length):tab==="banks"?state.notes.filter(n=>n.bank&&n.bank.questions&&n.bank.questions.length):state.notes;
   const cards=list.length?list.map(n=>{
     const sub=esc((n.note.intro||n.note.summary||"").slice(0,120));
@@ -1076,7 +1035,7 @@ function renderHome(){
         <button class="htab${tab==="notes"?" active":""}" data-ht="notes">📄 Notatki<span class="cnt">${state.notes.length}</span></button>
         <button class="htab${tab==="quizzes"?" active":""}" data-ht="quizzes">🧠 Quizy<span class="cnt">${qn}</span></button>
         <button class="htab${tab==="banks"?" active":""}" data-ht="banks">🏦 Bank<span class="cnt">${bn}</span></button>
-
+        <button class="htab${tab==="sekcje"?" active":""}" data-ht="sekcje">📚 Sekcje<span class="cnt">${state.sekcje.length}</span></button>
       </div>
       <div class="hlist">${cards}</div>
       <div class="haddwrap"><button class="hadd" id="homeNew">＋ Dodaj notatkę</button></div>
@@ -1087,6 +1046,34 @@ function renderHome(){
   content.querySelectorAll("[data-hq]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-hdel]")) return; state.currentId=el.getAttribute("data-hq"); state.qz=null; state.view="quiz"; renderNote(); });
   content.querySelectorAll("[data-hb]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-hdel]")) return; state.currentId=el.getAttribute("data-hb"); state.qz=null; state.view="bank"; renderNote(); });
   document.getElementById("homeNew").onclick=()=>{ state.draft={title:"",text:"",fileName:"",images:[]}; renderInput(); };
+}
+
+function openSekcja(id){
+  const sk=state.sekcje.find(x=>x.id===id); if(!sk){ state.libTab="sekcje"; renderHome(); return; }
+  state.view="sekcja"; state.currentSek=id;
+  const banks=state.notes.filter(n=>n.bank&&n.bank.questions&&n.bank.questions.length);
+  const st=sekStats(sk);
+  const memberCards=(sk.noteIds||[]).map(nid=>{ const n=state.notes.find(x=>x.id===nid); if(!n) return ""; const q=(n.bank&&n.bank.questions)?n.bank.questions.filter(x=>!x.skip).length:0; const m=(n.bank&&n.bank.questions)?n.bank.questions.filter(x=>!x.skip&&x.streak>=1).length:0; return `<div class="hcard"><div class="hbody"><h4>${esc(n.note.title||"Bez tytułu")}</h4><div class="hmeta">🏦 ${q} ${plural(q,"pytanie","pytania","pytań")} · 🎯 ${m}/${q}</div></div><button class="hdel" data-rm="${nid}" title="Usuń z sekcji">✕</button></div>`; }).filter(Boolean).join("")||`<div class="hempty">Sekcja jest pusta. Dodaj poniżej notatki z gotowym bankiem pytań.</div>`;
+  const avail=banks.filter(n=>(sk.noteIds||[]).indexOf(n.id)<0);
+  const availHtml=avail.length?avail.map(n=>{ const q=n.bank.questions.filter(x=>!x.skip).length; return `<label class="addrow"><input type="checkbox" value="${n.id}"> <span>${esc(n.note.title||"Bez tytułu")} <span class="covsl">(${q} pyt.)</span></span></label>`; }).join(""):`<div class="covhint" style="padding:6px">Wszystkie banki są już w tej sekcji (albo nie masz jeszcze żadnego banku).</div>`;
+  content.innerHTML=`
+    <button class="backbtn" id="skBack">‹ Wstecz</button>
+    <div class="home" style="padding-top:0">
+      <h1 class="hello" style="font-size:clamp(24px,6vw,32px)">${esc(sk.name)} <button class="titledit" id="skRename" title="Zmień nazwę">✏️</button></h1>
+      <div class="hellosub">${st.total} ${plural(st.total,"pytanie","pytania","pytań")} łącznie · 🎯 opanowano ${st.mastered}/${st.total} (${st.pct}%)</div>
+      <div class="msbar" style="max-width:420px;margin:0 0 16px"><div class="msfill" style="width:${st.pct}%"></div></div>
+      <div class="row" style="margin:0 0 20px"><button class="btn" id="skTrain" ${st.total?"":"disabled"}>🎯 Ucz się (${st.total} pyt.)</button></div>
+      <div class="sublabel">Banki w sekcji</div>
+      <div class="hlist" style="margin-bottom:18px">${memberCards}</div>
+      <div class="sublabel">Dodaj banki do sekcji</div>
+      <div class="addbox">${availHtml}</div>
+      ${avail.length?`<div class="row"><button class="btn ghost" id="skAdd">＋ Dodaj zaznaczone</button></div>`:""}
+    </div>`;
+  document.getElementById("skBack").onclick=()=>{ state.libTab="sekcje"; renderHome(); };
+  document.getElementById("skTrain").onclick=()=>startSekcjaMastery(sk);
+  document.getElementById("skRename").onclick=()=>{ const v=(prompt("Nowa nazwa sekcji:",sk.name)||"").trim(); if(v){ sk.name=v; saveSekcje(); openSekcja(id); } };
+  content.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ sk.noteIds=sk.noteIds.filter(x=>x!==b.getAttribute("data-rm")); saveSekcje(); openSekcja(id); });
+  const addBtn=document.getElementById("skAdd"); if(addBtn) addBtn.onclick=()=>{ const ids=[...content.querySelectorAll(".addbox input:checked")].map(c=>c.value); if(!ids.length) return; sk.noteIds=[...(sk.noteIds||[]),...ids]; saveSekcje(); openSekcja(id); };
 }
 
 function renderInput(){
@@ -1223,7 +1210,7 @@ function renderNote(){
     }
     if(s.table) inner+=tableHtml(s.table);
     if(s.examples&&s.examples.length) inner+=`<div class="exbox">${s.examples.map(e=>`<div class="ex"><span class="exlbl">💡 ${esc(e.label)}:</span> ${esc(e.text)}</div>`).join("")}</div>`;
-    bodyHtml+=`<div class="sec"><button class="sechead"><span class="chev">▸</span><span class="qhead">${esc(head)}</span></button><div class="secbody">${inner}</div></div>`;
+    bodyHtml+=`<div class="sec collapsed"><button class="sechead"><span class="chev">▸</span><span class="qhead">${esc(head)}</span></button><div class="secbody">${inner}</div></div>`;
   });
 
   const inlineFigs=(n.sections||[]).reduce((a,s)=>a+((s.figs&&s.figs.length)||0),0);
@@ -1236,7 +1223,7 @@ function renderNote(){
       <div class="readtime"><span class="doctag">📄 Dokument</span> <span class="dot"></span> ⏱ ~${mins} min <span class="dot"></span> ${(n.sections||[]).length} sekcji${imgCount?` <span class="dot"></span> 🖼️ ${imgCount} ilustr.`:""} <span class="dot"></span> ${new Date(entry.created).toLocaleDateString("pl-PL")}</div>
       ${introTxt?`<div class="intro">${esc(introTxt)}</div>`:""}
       <div class="notetools">
-        <button class="toolbtn" id="recallBtn" title="Ukryj odpowiedzi i sprawdzaj się">🧠 Tryb przypominania</button>
+        <button class="toolbtn" id="recallBtn" title="Rozwiń lub zwiń wszystkie sekcje">▶ Rozwiń wszystko</button>
         <button class="toolbtn" id="readBtn" title="Większy tekst i odstępy">A+ Czytelność</button>
         <button class="toolbtn" id="exportBtn" title="Zapisz notatkę do pliku — do przeniesienia na inne urządzenie">📤 Eksportuj</button>
         <button class="toolbtn" id="pdfBtn" title="Zapisz notatkę jako PDF">📄 Pobierz PDF</button>
@@ -1247,8 +1234,8 @@ function renderNote(){
 
   pane.querySelectorAll(".sec .sechead").forEach(h=>h.onclick=()=>h.parentElement.classList.toggle("collapsed"));
   const noteEl=pane.querySelector(".note");
-  const recallBtn=document.getElementById("recallBtn"); let recall=false;
-  recallBtn.onclick=()=>{ recall=!recall; pane.querySelectorAll(".sec").forEach(se=>se.classList.toggle("collapsed",recall)); recallBtn.textContent=recall?"👁 Pokaż wszystko":"🧠 Tryb przypominania"; recallBtn.classList.toggle("active",recall); };
+  const recallBtn=document.getElementById("recallBtn"); let expanded=false;
+  recallBtn.onclick=()=>{ expanded=!expanded; pane.querySelectorAll(".sec").forEach(se=>se.classList.toggle("collapsed",!expanded)); recallBtn.textContent=expanded?"▼ Zwiń wszystko":"▶ Rozwiń wszystko"; recallBtn.classList.toggle("active",expanded); };
   const readBtn=document.getElementById("readBtn");
   readBtn.onclick=()=>{ noteEl.classList.toggle("readable"); readBtn.classList.toggle("active"); };
   document.getElementById("exportBtn").onclick=()=>exportNote(entry);
@@ -1359,53 +1346,62 @@ async function generateBank(entry){
   if(failed) setTimeout(()=>alert("Uwaga: "+failed+" sekcji nie udało się przepytać — możesz zbudować bank od nowa."),100);
 }
 function bankStats(entry){ const qs=entry.bank.questions.filter(x=>!x.skip); const m=qs.filter(x=>x.streak>=1).length; const skipped=entry.bank.questions.length-qs.length; return {total:qs.length,mastered:m,skipped:skipped,pct:qs.length?Math.round(100*m/qs.length):0}; }
+
+/* ---------- Uniwersalny tryb nauki (deck) ---------- */
+function deckStats(deck){ const qs=deck.items.filter(x=>!x.qq.skip); const m=qs.filter(x=>x.qq.streak>=1).length; return {total:qs.length,mastered:m,pct:qs.length?Math.round(100*m/qs.length):0}; }
 function startMastery(entry){
-  const pool=entry.bank.questions.map((qq,i)=>({qq,i})).filter(x=>!x.qq.skip&&x.qq.streak<1);
+  const deck={items:entry.bank.questions.filter(x=>!x.skip).map(qq=>({qq,note:entry})),title:entry.note.title||"Bank pytań",onBack:()=>{ state.view="bank"; renderNote(); },resetAll:()=>{ entry.bank.questions.forEach(x=>{x.streak=0;x.wrong=0;x.seen=0;}); entry.updated=Date.now(); save(); syncSoon(); }};
+  runMastery(deck);
+}
+function startSekcjaMastery(sk){
+  const items=[];
+  (sk.noteIds||[]).forEach(id=>{ const n=state.notes.find(x=>x.id===id); if(n&&n.bank&&n.bank.questions) n.bank.questions.forEach(qq=>{ if(!qq.skip) items.push({qq,note:n}); }); });
+  if(!items.length){ alert("Ta sekcja nie ma jeszcze żadnych pytań. Dodaj do niej notatki z gotowym bankiem."); return; }
+  const deck={items,title:sk.name,onBack:()=>{ state.libTab="sekcje"; renderHome(); },resetAll:()=>{ items.forEach(x=>{x.qq.streak=0;x.qq.wrong=0;x.qq.seen=0; x.note.updated=Date.now();}); save(); syncSoon(); }};
+  runMastery(deck);
+}
+function runMastery(deck){
+  state.deck=deck;
+  const pool=deck.items.filter(x=>!x.qq.skip&&x.qq.streak<1);
+  const pane=document.getElementById("pane")||content;
   if(!pool.length){
-    const pane=document.getElementById("pane");
-    pane.innerHTML=`<div class="qsetup"><div class="qbadge big">🏆</div><h2 class="qtitle">Materiał opanowany!</h2><p class="qsub">Opanowałeś wszystkie ${entry.bank.questions.filter(x=>!x.skip).length} pytań z tej notatki.${bankStats(entry).skipped?` (${bankStats(entry).skipped} pominięto)`:""}</p><div class="row" style="justify-content:center"><button class="btn ghost" id="msReset0">↺ Resetuj postęp i ćwicz od nowa</button><button class="btn ghost" id="msBack0">↩ Wróć</button></div></div>`;
-    document.getElementById("msReset0").onclick=()=>{ entry.bank.questions.forEach(x=>{x.streak=0;x.wrong=0;x.seen=0;}); entry.updated=Date.now(); save(); syncSoon(); startMastery(entry); };
-    document.getElementById("msBack0").onclick=()=>{ state.view="bank"; renderNote(); };
+    pane.innerHTML=`<div class="qsetup"><div class="qbadge big">🏆</div><h2 class="qtitle">Materiał opanowany!</h2><p class="qsub">Opanowałeś wszystkie ${deck.items.filter(x=>!x.qq.skip).length} pytań.</p><div class="row" style="justify-content:center"><button class="btn ghost" id="msReset0">↺ Resetuj postęp</button><button class="btn ghost" id="msBack0">↩ Wróć</button></div></div>`;
+    document.getElementById("msReset0").onclick=()=>{ deck.resetAll(); runMastery(deck); };
+    document.getElementById("msBack0").onclick=()=>deck.onBack();
     return;
   }
   pool.sort((a,b)=>(b.qq.wrong-a.qq.wrong)||(a.qq.seen-b.qq.seen)||(Math.random()-.5));
-  state.ms={idx:pool.slice(0,10).map(x=>x.i),pos:0,picked:null,revealed:false,ok:0};
-  renderMastery(entry);
+  state.ms={items:pool.slice(0,10),pos:0,picked:null,revealed:false,ok:0};
+  renderMastery();
 }
-function renderMastery(entry){
-  const pane=document.getElementById("pane"); const ms=state.ms; const st=bankStats(entry);
-  if(ms.pos>=ms.idx.length){
-    pane.innerHTML=`<div class="qsetup"><div class="qbadge big">🎯</div><h2 class="qtitle">Runda zakończona</h2><p class="qsub">Poprawnie: <b>${ms.ok}/${ms.idx.length}</b> · opanowano łącznie <b>${st.mastered}/${st.total}</b> pytań (${st.pct}%)</p><div class="msbar" style="max-width:340px;margin:0 auto 18px"><div class="msfill" style="width:${st.pct}%"></div></div><div class="row" style="justify-content:center"><button class="btn" id="msNext">▶ Kolejna runda</button><button class="btn ghost" id="msBack">↩ Wróć</button></div></div>`;
-    document.getElementById("msNext").onclick=()=>startMastery(entry);
-    document.getElementById("msBack").onclick=()=>{ state.view="bank"; renderNote(); };
+function renderMastery(){
+  const deck=state.deck, ms=state.ms; const pane=document.getElementById("pane")||content; const st=deckStats(deck);
+  if(ms.pos>=ms.items.length){
+    pane.innerHTML=`<div class="qsetup"><div class="qbadge big">🎯</div><h2 class="qtitle">Runda zakończona</h2><p class="qsub">Poprawnie: <b>${ms.ok}/${ms.items.length}</b> · opanowano łącznie <b>${st.mastered}/${st.total}</b> (${st.pct}%)</p><div class="msbar" style="max-width:340px;margin:0 auto 18px"><div class="msfill" style="width:${st.pct}%"></div></div><div class="row" style="justify-content:center"><button class="btn" id="msNext">▶ Kolejna runda</button><button class="btn ghost" id="msBack">↩ Wróć</button></div></div>`;
+    document.getElementById("msNext").onclick=()=>runMastery(deck);
+    document.getElementById("msBack").onclick=()=>deck.onBack();
     return;
   }
-  const qq=entry.bank.questions[ms.idx[ms.pos]];
+  const it=ms.items[ms.pos], qq=it.qq;
   pane.innerHTML=`
     <div style="margin-bottom:14px">
-      <div class="banklbl"><span>Pytanie ${ms.pos+1}/${ms.idx.length} · ${esc(qq.sec)}</span><span>🎯 ${st.pct}% opanowane</span></div>
+      <div class="banklbl"><span>Pytanie ${ms.pos+1}/${ms.items.length} · ${esc(qq.sec||"")}</span><span>🎯 ${st.pct}% opanowane (${st.mastered}/${st.total})</span></div>
       <div class="msbar"><div class="msfill" style="width:${st.pct}%"></div></div>
     </div>
     <div class="q"><div class="qt">${esc(qq.q)}</div>
-      ${qq.options.map((o,oi)=>{ let cls="opt"; if(ms.revealed){ if(oi===qq.correct) cls+=" correct"; else if(oi===ms.picked) cls+=" wrong"; } else if(ms.picked===oi) cls+=" sel"; return `<div class="${cls}" data-oi="${oi}"><span class="mk">${ms.revealed&&oi===qq.correct?"✓":ms.revealed&&oi===ms.picked?"✗":""}</span><span class="ot">${esc(o)}</span></div>`; }).join("")}
+      ${qq.options.map((o,oi)=>{ let cls="opt"; if(ms.revealed){ if(oi===qq.correct) cls+=" correct"; else if(ms.picked>=0&&oi===ms.picked) cls+=" wrong"; } else if(ms.picked===oi) cls+=" sel"; return `<div class="${cls}" data-oi="${oi}"><span class="mk">${ms.revealed&&oi===qq.correct?"✓":ms.revealed&&ms.picked>=0&&oi===ms.picked?"✗":""}</span><span class="ot">${esc(o)}</span></div>`; }).join("")}
       ${ms.revealed&&qq.explanation?`<div class="exp">${esc(qq.explanation)}</div>`:""}
     </div>
-    <div class="row"><button class="btn" id="msCheck" ${ms.picked==null?"disabled":""}>${ms.revealed?"Dalej →":"Sprawdź"}</button><button class="btn ghost" id="msSkip" title="Usuń to pytanie z banku na stałe">🚫 Pomiń pytanie</button><button class="btn ghost" id="msQuit">Zakończ rundę</button></div>`;
-  if(!ms.revealed) pane.querySelectorAll(".opt").forEach(el=>el.onclick=()=>{ ms.picked=+el.getAttribute("data-oi"); renderMastery(entry); });
+    <div class="row"><button class="btn" id="msCheck" ${ms.picked==null?"disabled":""}>${ms.revealed?"Dalej →":"Sprawdź"}</button><button class="btn ghost" id="msNw" title="Nie znam — pytanie wróci">🤔 Nie wiem</button><button class="btn ghost" id="msSkip" title="Usuń pytanie na stałe">🚫 Pomiń</button><button class="btn ghost" id="msQuit">Zakończ</button></div>`;
+  if(!ms.revealed) pane.querySelectorAll(".opt").forEach(el=>el.onclick=()=>{ ms.picked=+el.getAttribute("data-oi"); renderMastery(); });
+  function persist(){ it.note.updated=Date.now(); save(); syncSoon(); }
   document.getElementById("msCheck").onclick=()=>{
-    if(!ms.revealed){
-      ms.revealed=true; qq.seen++;
-      if(ms.picked===qq.correct){ qq.streak++; ms.ok++; } else { qq.streak=0; qq.wrong++; }
-      entry.updated=Date.now(); save(); syncSoon(); renderMastery(entry);
-    } else { ms.pos++; ms.picked=null; ms.revealed=false; renderMastery(entry); }
+    if(!ms.revealed){ ms.revealed=true; qq.seen++; if(ms.picked===qq.correct){ qq.streak++; ms.ok++; } else { qq.streak=0; qq.wrong++; } persist(); renderMastery(); }
+    else { ms.pos++; ms.picked=null; ms.revealed=false; renderMastery(); }
   };
-  document.getElementById("msQuit").onclick=()=>{ state.view="bank"; renderNote(); };
-  document.getElementById("msSkip").onclick=()=>{
-    if(!confirm("Trwale pominąć to pytanie? Zniknie z banku i nie będzie liczone do postępu.")) return;
-    qq.skip=true; entry.updated=Date.now(); save(); syncSoon();
-    ms.idx.splice(ms.pos,1); if(ms.pos>=ms.idx.length){ if(!ms.idx.length){ state.view="bank"; renderNote(); return; } }
-    ms.picked=null; ms.revealed=false; renderMastery(entry);
-  };
+  document.getElementById("msQuit").onclick=()=>deck.onBack();
+  document.getElementById("msNw").onclick=()=>{ if(ms.revealed) return; qq.seen++; qq.streak=0; qq.wrong+=2; ms.revealed=true; ms.picked=-1; persist(); renderMastery(); };
+  document.getElementById("msSkip").onclick=()=>{ qq.skip=true; persist(); ms.items.splice(ms.pos,1); if(ms.pos>=ms.items.length&&!ms.items.length){ deck.onBack(); return; } ms.picked=null; ms.revealed=false; renderMastery(); };
 }
 
 async function requestQuiz(count){
@@ -1500,44 +1496,6 @@ document.getElementById("importBtn").onclick=()=>document.getElementById("import
 document.getElementById("importInput").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) importNoteFile(f); e.target.value=""; });
 
 /* ---------- Demo note ---------- */
-const SVG_FIGURE='<svg viewBox="0 0 360 240" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#1d2030" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="40" y="50" width="220" height="140"/><path d="M40 50 L260 190 M260 50 L40 190"/><path d="M150 50 L150 190 M40 120 L260 120"/><rect x="48" y="92" width="44" height="44"/><path d="M48 92 L92 136 M92 92 L48 136"/><path d="M260 70 L330 120 L260 170"/><circle cx="205" cy="150" r="16"/><circle cx="199" cy="148" r="2" fill="#1d2030"/><circle cx="211" cy="148" r="2" fill="#1d2030"/><path d="M150 70 L170 60 M165 95 L185 85 M180 120 L200 110"/><path d="M70 175 L100 175 M85 160 L85 190"/></g></svg>';
-const SVG_MAZE='<svg viewBox="0 0 360 240" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="#1d2030" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M30 30 L30 70 M12 48 L52 46"/><path d="M70 58 L330 52 L326 208 L74 212 Z"/><path d="M74 60 L326 206 M326 56 L78 210"/><path d="M120 96 L138 86 M150 120 L168 110 M180 144 L198 134 M210 166 L228 156"/><circle cx="268" cy="132" r="30"/><circle cx="258" cy="126" r="2.5" fill="#1d2030"/><circle cx="278" cy="126" r="2.5" fill="#1d2030"/><path d="M256 146 L282 146"/></g></svg>';
-const DEMO={
-  id:"demo-neuro-1", created:Date.parse("2026-06-09"), source:"(przykład: Neuropsychologia – wprowadzenie)", quiz:null, images:[],
-  note:{
-    title:"Neuropsychologia kliniczna – wprowadzenie",
-    intro:"Notatka wprowadza w neuropsychologię kliniczną – dziedzinę badającą relacje między mózgiem a zachowaniem. Omawia zakres pracy i zadania neuropsychologa, etapy procesu diagnostycznego oraz zasady interpretacji wyników (analiza ilościowa i jakościowa). Całość ilustruje przypadek kliniczny różnicujący skutki urazu głowy od nadużywania alkoholu oraz przegląd rodzajów diagnozy i typowych trudności pacjentów z uszkodzeniem OUN.",
-    sections:[
-      {group:"Podstawy neuropsychologii",heading:"Przedmiot i dziedziny",question:"Czym zajmuje się neuropsychologia i z jakimi dziedzinami się łączy?",mainIdea:"Neuropsychologia bada związki między zachowaniem a mózgiem, łącząc wiedzę z kilku dziedzin medycyny i nauk o mózgu.",points:["**Przedmiot:** związki między funkcjonowaniem mózgu a zachowaniem człowieka.","**Dziedziny pokrewne:** neurologia i neurorehabilitacja, neurochirurgia, radiologia, psychiatria, neurobiologia.","**Etiologie zaburzeń:** naczyniowa (udary), urazowa, nowotworowa, zapalna, degeneracyjna (Alzheimer, Parkinson) oraz inne (np. zespół Korsakowa)."],examples:[],table:null,imageSlides:[]},
-      {group:"Podstawy neuropsychologii",heading:"Miejsce pracy i zadania",question:"Gdzie pracuje neuropsycholog i jakie ma zadania?",mainIdea:"Neuropsycholog kliniczny pracuje głównie na oddziałach neurologicznych i w poradniach, w zespole wielospecjalistycznym.",points:["**Miejsce pracy:** oddziały neurologii i rehabilitacji neurologicznej, poradnie psychologiczne.","**Współpraca:** z lekarzami, pielęgniarkami, neurologopedami, fizjoterapeutami i terapeutami zajęciowymi.","**Zadania:** diagnostyka funkcji poznawczych i wykonawczych, opinie, planowanie rehabilitacji, diagnoza różnicowa, pomoc psychologiczna, działania kompensacyjne."],examples:[],table:null,imageSlides:[]},
-      {group:"Podstawy neuropsychologii",heading:"Przedmiot oceny",question:"Co dokładnie ocenia neuropsycholog — uszkodzenia czy funkcjonowanie?",mainIdea:"Zadaniem neuropsychologa NIE jest ocena uszkodzeń mózgu, lecz opis funkcjonowania na podstawie zachowań pacjenta.",points:["**Funkcje poznawcze:** pamięć, uwaga, funkcje wzrokowo-przestrzenne i językowe.","**Funkcje wykonawcze:** hamowanie reakcji, planowanie, kontrola.","**Pozostałe obszary:** funkcjonowanie czuciowo-ruchowe i emocjonalne."],examples:[],table:null,imageSlides:[]},
-      {group:"Proces diagnostyczny",heading:"Etapy diagnozy",question:"Jak przebiega proces diagnozy neuropsychologicznej?",mainIdea:"Diagnoza to uporządkowany proces od zebrania wywiadu, przez hipotezy i dobór testów, aż po opinię.",points:["**Wywiad:** historia choroby i rozmowa z bliskimi; buduje też relację z pacjentem.","**Hipotezy robocze:** stawiane na podstawie literatury, wiedzy klinicznej, lokalizacji uszkodzenia i skierowania.","**Dobór narzędzi:** ze świadomością wad testów i ryzyka artefaktów.","**Dane i opinia:** zebranie danych ilościowych i jakościowych, weryfikacja hipotez, sporządzenie opinii."],examples:[],table:null,imageSlides:[]},
-      {group:"Proces diagnostyczny",heading:"Pułapki interpretacji",question:"Dlaczego pojedynczy wynik testu może mylić?",mainIdea:"Pojedynczy wynik nie wystarcza – ten sam błąd może mieć różne przyczyny, dlatego kluczowe są hipotezy.",points:["**Wynik ogólny:** może zaciemniać obraz – pacjent może mieć maksimum punktów mimo słabego wykonania.","**Niewykonanie próby:** nie oznacza uszkodzenia danej funkcji – np. trudność w teście Bentona może wynikać z problemów grafomotorycznych lub wzrokowo-przestrzennych, a nie z pamięci.","**Wieloczynnikowość:** jeden błąd może mieć przyczyny w kilku czynnikach naraz.","**Syndromy/zespoły:** ich znajomość ułatwia diagnozę różnicową (np. zespół rzekomoopuszkowy bywa mylony z depresją lub CHAD)."],examples:[],table:null,imageSlides:[]},
-      {group:"Proces diagnostyczny",heading:"Dane i opinia",question:"Czym różni się analiza ilościowa od jakościowej i co zawiera opinia?",mainIdea:"Liczby pozwalają porównywać wyniki, ale dopiero analiza jakościowa pokazuje, JAK pacjent wykonuje zadanie.",points:["**Dane ilościowe:** umożliwiają porównania z normami, lecz zaciemniają sposób wykonania.","**Dane jakościowe:** kolejność i czas wykonywania, komentarze i zachowanie pacjenta, podejście do testu i ocena własnych wytworów.","**Opinia psychologiczna:** zwięzła, treściwa, zrozumiała dla specjalisty; zawiera analizę jakościową, ilościową oraz wyniki liczbowe."],examples:[],table:null,imageSlides:[]},
-      {group:"Zastosowanie i przykłady",heading:"Przypadek kliniczny (Welsch)",question:"Jak odróżniono skutki urazu głowy od nadużywania alkoholu?",mainIdea:"Analiza testów pozwoliła odróżnić skutki urazu głowy od skutków nadużywania alkoholu mimo wysokiego IQ pacjenta.",points:["**Pacjent:** 45-latek po wypadku, nadużywa alkoholu; po urazie zmiany zachowania (mniej empatii, obcesowość, degradacja w pracy).","**WAIS-R:** wyniki wysokie i stałe (ogólny 124) – odzwierciedlają funkcjonowanie przedchorobowe.","**Testy:** labirynty – perseweracje; figura złożona – dobra kopia, ale konfabulacje przy odtwarzaniu; obniżona fluencja słowna; test pamięci poniżej normy.","**Wniosek:** potwierdzono uraz przednich struktur mózgu (nagłe zmiany osobowości, brak ciągów alkoholowych, drobne ogniska zanikowe w TK)."],examples:[{label:"Dlaczego nie alkohol",text:"Zmiany osobowości pojawiły się nagle i są charakterystyczne dla urazu, a przed wypadkiem – mimo nadużywania – nie zgłaszano takich trudności."}],table:null,imageSlides:[],figs:[{svg:SVG_FIGURE,cap:"Figura złożona do testu pamięci — schematyczny podgląd"},{svg:SVG_MAZE,cap:"Rysunek z testu pacjenta — schematyczny podgląd"}]},
-      {group:"Zastosowanie i przykłady",heading:"Rodzaje diagnozy",question:"Jakie są rodzaje diagnozy i która jest najważniejsza?",mainIdea:"Wyróżniamy cztery rodzaje diagnozy, z których funkcjonalna i ekologiczna mają największe znaczenie praktyczne.",points:["**Nozologiczna:** obserwacja postępu choroby, dynamiki i efektów leczenia/rehabilitacji.","**Lokalizacyjna:** mniej istotna ze względu na rozwój neuroobrazowania.","**Funkcjonalna/opisowa:** najważniejszy element diagnozy – opisuje stan i funkcjonowanie pacjenta.","**Ekologiczna:** pokazuje wpływ zaburzenia na codzienność; z punktu widzenia pacjenta najistotniejsza."],examples:[{label:"Realne zastosowanie",text:"Pacjentowi z zaburzeniami uwagi można zalecić zapisywanie najważniejszych wniosków w trakcie spotkania – oddziaływanie dopasowane do jego procesów poznawczych."}],table:{headers:["Rodzaj diagnozy","Do czego służy"],rows:[["Nozologiczna","Śledzenie postępu i dynamiki choroby"],["Lokalizacyjna","Wskazanie miejsca uszkodzenia (dziś mniej istotne)"],["Funkcjonalna/opisowa","Opis aktualnego funkcjonowania pacjenta"],["Ekologiczna","Wpływ zaburzenia na codzienne życie"]]},imageSlides:[]},
-      {group:"Zastosowanie i przykłady",heading:"Trudności przy uszkodzeniu OUN",question:"Jakie objawy są typowe dla pacjentów z uszkodzeniem OUN?",mainIdea:"Uszkodzenia ośrodkowego układu nerwowego dają szeroki wachlarz objawów poznawczych i emocjonalnych.",points:["**Uwaga i tempo:** osłabiona koncentracja, męczliwość, rozpraszalność, spowolnienie lub pobudzenie.","**Popędowość:** spektrum od apatii do impulsywności.","**Pamięć i myślenie:** zaburzenia pamięci, perseweracje, konfabulacje.","**Wgląd i emocje:** anozognozja (brak świadomości deficytu), labilność emocjonalna."],examples:[],table:null,imageSlides:[]}
-    ],
-    studyQuestions:[
-      "Czym zajmuje się neuropsychologia kliniczna i jakie są główne zadania neuropsychologa?",
-      "Dlaczego zadaniem neuropsychologa NIE jest ocena uszkodzeń mózgu, lecz ocena funkcjonowania poznawczego?",
-      "Jakie są kluczowe różnice między analizą ilościową a jakościową w procesie diagnostycznym?",
-      "Wymień i scharakteryzuj cztery rodzaje diagnozy neuropsychologicznej.",
-      "Na przykładzie przypadku wg Welscha wyjaśnij, jak odróżniono skutki urazu głowy od skutków nadużywania alkoholu.",
-      "Jakie objawy (np. perseweracje, konfabulacje, anozognozja) są typowe dla pacjentów z uszkodzeniem OUN?"
-    ]
-  }
-};
-DEMO.quiz=[
-  {q:"Neuropsychologia bada przede wszystkim związki pomiędzy:",options:["sercem a układem krążenia","zachowaniem a mózgiem","genami a środowiskiem","hormonami a nastrojem"],correct:1,explanation:"Neuropsychologia to dział nauki badający związki między zachowaniem a mózgiem."},
-  {q:"Które zadanie NIE należy do neuropsychologa?",options:["Ocena możliwych uszkodzeń mózgu","Diagnostyka funkcji poznawczych","Planowanie rehabilitacji funkcji poznawczych","Sporządzanie opinii psychologicznej"],correct:0,explanation:"Neuropsycholog ocenia funkcjonowanie poznawcze na podstawie zachowań, a nie same uszkodzenia mózgu."},
-  {q:"Trudność w wykonaniu testu Bentona może wynikać z:",options:["wyłącznie uszkodzenia pamięci","trudności grafomotorycznych lub wzrokowo-przestrzennych","zawsze uszkodzenia płata czołowego","wyłącznie braku motywacji"],correct:1,explanation:"Niewykonanie próby nie oznacza uszkodzenia badanej funkcji – stąd znaczenie hipotez."},
-  {q:"Diagnoza opisująca wpływ zaburzenia na codzienne funkcjonowanie pacjenta to diagnoza:",options:["nozologiczna","lokalizacyjna","ekologiczna","różnicowa"],correct:2,explanation:"Diagnoza ekologiczna wskazuje, jak zaburzenie wpływa na codzienność pacjenta."},
-  {q:"Analiza jakościowa w diagnostyce uwzględnia przede wszystkim:",options:["wynik ogólny w punktach","sposób wykonywania testu, czas, komentarze i zachowanie pacjenta","wyłącznie normy testowe","wyniki neuroobrazowania"],correct:1,explanation:"Analiza jakościowa bierze pod uwagę m.in. kolejność i czas wykonania, komentarze i zachowanie pacjenta."},
-  {q:"W przypadku klinicznym wg Welscha wysokie wyniki WAIS-R wskazywały głównie na:",options:["brak jakichkolwiek zaburzeń","funkcjonowanie przedchorobowe pacjenta","uszkodzenie na tle alkoholowym","symulowanie objawów"],correct:1,explanation:"Wysokie IQ odzwierciedlało funkcjonowanie sprzed urazu; deficyty ujawniły testy uczenia się i funkcji wykonawczych."},
-  {q:"Anozognozja to:",options:["nadmierna świadomość choroby","brak lub osłabienie wglądu w obecność własnych deficytów","zaburzenie ekspresji mowy","zaburzenie pamięci świeżej"],correct:1,explanation:"Anozognozja to brak świadomości/wglądu we własne deficyty – typowa przy uszkodzeniach OUN."},
-  {q:"Hipotezy diagnostyczne stawiamy między innymi na podstawie:",options:["wyłącznie intuicji badającego","literatury, wiedzy klinicznej i lokalizacji uszkodzenia","tylko życzeń pacjenta","liczby wykonanych testów"],correct:1,explanation:"Hipotezy robocze opierają się na literaturze, wiedzy klinicznej i lokalizacji uszkodzenia; często są w skierowaniu."}
-];
 
 if(window.pdfjsLib){ try{ pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; }catch(e){} }
 function updateAuthUi(){
@@ -1596,9 +1554,7 @@ function updateAuthUi(){
       orModel:document.getElementById("cfgOrModel").value.trim(),
       orQuizModel:document.getElementById("cfgOrModelQ").value.trim(),
       wUrl:document.getElementById("cfgWUrl").value.trim(),
-      wSecret:document.getElementById("cfgWSecret").value.trim(),
-      ghToken:document.getElementById("cfgGhToken").value.trim(),
-      ghRepo:document.getElementById("cfgGhRepo").value.trim()
+      wSecret:document.getElementById("cfgWSecret").value.trim()
     });
   }
   function openM(){
@@ -1609,8 +1565,7 @@ function updateAuthUi(){
     document.getElementById("cfgGmKey").value=c.gmKey||""; selG.value=c.gmModel||"gemini-2.5-flash"; selGQ.value=c.gmQuizModel||"gemini-2.5-flash";
     document.getElementById("cfgOrKey").value=c.orKey||""; document.getElementById("cfgOrModel").value=c.orModel||""; document.getElementById("cfgOrModelQ").value=c.orQuizModel||"";
     document.getElementById("cfgWUrl").value=c.wUrl||""; document.getElementById("cfgWSecret").value=c.wSecret||"";
-    document.getElementById("cfgGhRepo").value=c.ghRepo||""; document.getElementById("cfgGhToken").value=c.ghToken||"";
-    document.getElementById("cfgStatus").textContent=""; document.getElementById("cfgSyncStatus").textContent="";
+    document.getElementById("cfgStatus").textContent="";
     m.classList.remove("hidden");
   }
   ["cfgBtn","cfgBtnTop"].forEach(id=>{ const b=document.getElementById(id); if(b) b.onclick=openM; });
@@ -1625,8 +1580,6 @@ function updateAuthUi(){
     try{ const r=await ask("Odpowiedz dokładnie jednym słowem: OK",30); st.innerHTML='<span style="color:var(--ok)">✔ Działa! Odpowiedź modelu: '+esc((r||"").trim().slice(0,40))+'</span>'; }
     catch(e){ st.innerHTML='<span style="color:var(--bad)">✖ '+esc(e.message)+'</span>'; }
   };
-  document.getElementById("cfgGhEye").onclick=()=>{ const k=document.getElementById("cfgGhToken"); k.type=k.type==="password"?"text":"password"; };
-  document.getElementById("cfgGhSync").onclick=()=>{ setCfg(collectCfg()); if(!syncConfigured()){ document.getElementById("cfgSyncStatus").textContent="Uzupełnij repo (format: użytkownik/nazwa) i token."; return; } syncNow(true); };
   document.getElementById("bkExport").onclick=()=>{
     const data={type:"notatkiai-backup",version:1,exported:Date.now(),notes:state.notes.filter(n=>n.id!=="demo-neuro-1")};
     const blob=new Blob([JSON.stringify(data)],{type:"application/json"});
@@ -1655,14 +1608,13 @@ function updateAuthUi(){
 })();
 (async function init(){
   await loadNotes();
-  const _di=state.notes.findIndex(n=>n.id===DEMO.id);
-  if(_di>=0) state.notes[_di]=DEMO; else state.notes.push(DEMO);
-  if(_idbOk) idbPut(DEMO).catch(()=>{}); else save();
+  loadSekcje();
+  if(state.notes.some(n=>n.id==="demo-neuro-1")){ state.notes=state.notes.filter(n=>n.id!=="demo-neuro-1"); removeNotePersist("demo-neuro-1"); }
   state.notes.sort((a,b)=>(b.created||0)-(a.created||0));
   setupChrome();
   updateAuthUi();
   renderLib();
   renderHome();
-  if(loggedIn()||syncConfigured()) syncNow(false);
+  if(loggedIn()) syncNow(false);
 })();
 </script>
