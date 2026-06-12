@@ -103,6 +103,8 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(
 .libtab.active .libcnt{background:var(--accent);color:#fff}
 .pts{margin:0 0 4px;padding-left:20px}
 .pts li{margin:6px 0;line-height:1.55}
+.pts li .figs{margin:9px 0 11px}
+.pts li .fig{max-width:440px}
 .tblwrap{overflow:auto;margin:13px 0}
 .tbl{border-collapse:collapse;width:100%;font-size:13.5px}
 .tbl th,.tbl td{border:1px solid var(--border);padding:8px 11px;text-align:left;vertical-align:top}
@@ -969,6 +971,24 @@ function wordCount(o){
 /* ---------- Rendering ---------- */
 const content=document.getElementById("content");
 const lib=document.getElementById("lib");
+function _normTok(t){ return (t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(w=>w.length>=3); }
+function _normTok2(t){ return (t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(w=>w.length>=2); }
+function _tokMatch(a,b){ if(a===b) return true; if(a.length<5||b.length<5) return false; return a.slice(0,5)===b.slice(0,5); } // rdzeń = pierwsze 5 znaków (polska odmiana)
+function _pointKey(p){ const m=/\*\*([\s\S]+?)\*\*/.exec(p||""); return {bold:_normTok2(m?m[1]:""), all:_normTok(p)}; }
+function _matchScore(capTok,pk){ let sc=0; capTok.forEach(w=>{ if(pk.bold.some(b=>_tokMatch(w,b))) sc+=3; else if(pk.all.some(a=>_tokMatch(w,a))) sc+=1; }); return sc; }
+// dzieli obrazy sekcji: przypisuje każdy do najlepiej pasującego punktu (>=próg), reszta na koniec
+function distributeFigs(figs,points){
+  const perPoint={}, leftover=[];
+  const keys=(points||[]).map(_pointKey);
+  (figs||[]).forEach(im=>{
+    const capTok=[...new Set(_normTok(im.cap||im.vis||""))];
+    let best=-1,bestS=0;
+    keys.forEach((pk,i)=>{ const sc=_matchScore(capTok,pk); if(sc>bestS){ bestS=sc; best=i; } });
+    if(best>=0 && bestS>=3 && capTok.length){ (perPoint[best]=perPoint[best]||[]).push(im); }
+    else leftover.push(im);
+  });
+  return {perPoint,leftover};
+}
 function figsHtml(arr){ if(!arr||!arr.length) return ""; return '<div class="figs">'+arr.map(im=>{ const body=im.svg?`<div class="figsvg">${im.svg}</div>`:`<img src="${im.dataUrl}" alt="">`; const cap=im.cap?`<figcaption class="fcap">${esc(im.cap)}</figcaption>`:""; return `<figure class="fig">${body}${cap}</figure>`; }).join("")+'</div>'; }
 function galleryGrid(arr){ return '<div class="gallery">'+arr.map(im=>`<div class="gcard"><img src="${im.dataUrl}" alt="">${im.cap?`<div class="gcap">${esc(im.cap)}</div>`:""}</div>`).join("")+'</div>'; }
 function tableHtml(t){ if(!t||!t.headers||!t.headers.length) return ""; return `<div class="tblwrap"><table class="tbl"><thead><tr>${t.headers.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${(t.rows||[]).map(r=>`<tr>${(r||[]).map(c=>`<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
@@ -1193,8 +1213,14 @@ function renderNote(){
     let inner="";
     const leadTxt=s.lead||s.mainIdea;
     if(leadTxt) inner+=`<p class="lead">${esc(leadTxt)}</p>`;
-    if(s.points&&s.points.length) inner+=`<ul class="pts">${s.points.map(p=>`<li>${mdBold(p)}</li>`).join("")}</ul>`;
-    inner+=figsHtml(figsForSection(s));
+    const _figs=figsForSection(s);
+    if(s.points&&s.points.length){
+      const dist=distributeFigs(_figs,s.points);
+      inner+=`<ul class="pts">${s.points.map((p,pi)=>`<li>${mdBold(p)}${dist.perPoint[pi]?figsHtml(dist.perPoint[pi]):""}</li>`).join("")}</ul>`;
+      inner+=figsHtml(dist.leftover);
+    } else {
+      inner+=figsHtml(_figs);
+    }
     if(s.table) inner+=tableHtml(s.table);
     if(s.examples&&s.examples.length) inner+=`<div class="exbox">${s.examples.map(e=>`<div class="ex"><span class="exlbl">💡 ${esc(e.label)}:</span> ${esc(e.text)}</div>`).join("")}</div>`;
     bodyHtml+=`<div class="sec"><button class="sechead"><span class="chev">▸</span><span class="qhead">${esc(head)}</span></button><div class="secbody">${inner}</div></div>`;
