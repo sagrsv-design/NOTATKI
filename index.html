@@ -660,6 +660,54 @@ async function ask(prompt,maxTok,role){
   }
   throw new Error("Brak skonfigurowanego AI — wybierz dostawcę i wpisz klucz w ⚙ Ustawienia AI.");
 }
+
+/* ---------- Faza wizji: model OGLĄDA obrazy i je opisuje ---------- */
+function visionAvailable(){ const c=getCfg(); return c.provider==="gemini"&&!!c.gmKey || c.provider==="worker"&&!!c.wUrl || c.provider==="anthropic"&&!!c.apiKey; }
+function splitDataUrl(u){ const m=/^data:([^;]+);base64,(.*)$/.exec(u||""); return m?{mime:m[1],data:m[2]}:null; }
+async function askVision(prompt,images,maxTok){
+  const c=getCfg();
+  const imgs=(images||[]).map(im=>splitDataUrl(im.dataUrl)).filter(Boolean);
+  if(!imgs.length) return "";
+  async function http(url,opts,parse){
+    let r; try{ r=await fetch(url,opts); }catch(e){ throw new Error("Brak połączenia z API (wizja)."); }
+    let d=null; try{ d=await r.json(); }catch(e){}
+    if(!r.ok) throw new Error((d&&((d.error&&(d.error.message||d.error))||d.message))||("HTTP "+r.status));
+    return parse(d);
+  }
+  if(c.provider==="gemini"&&c.gmKey){
+    const model=c.gmModel||"gemini-2.5-flash";
+    const parts=[{text:prompt}].concat(imgs.map(x=>({inlineData:{mimeType:x.mime,data:x.data}})));
+    return await http("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(model)+":generateContent?key="+encodeURIComponent(c.gmKey),
+      {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({contents:[{parts}],generationConfig:{maxOutputTokens:maxTok||3000}})},
+      d=>{ const cand=d&&d.candidates&&d.candidates[0]; return (cand&&cand.content&&cand.content.parts)?cand.content.parts.map(x=>x.text||"").join(""):""; });
+  }
+  if(c.provider==="anthropic"&&c.apiKey){
+    const content=imgs.map(x=>({type:"image",source:{type:"base64",media_type:x.mime,data:x.data}})).concat([{type:"text",text:prompt}]);
+    return await http("https://api.anthropic.com/v1/messages",
+      {method:"POST",headers:{"content-type":"application/json","x-api-key":c.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:c.model||"claude-sonnet-4-6",max_tokens:maxTok||3000,messages:[{role:"user",content}]})},
+      d=>(d.content||[]).map(b=>b.text||"").join(""));
+  }
+  if(c.provider==="worker"&&c.wUrl){
+    const hdrs={"content-type":"application/json"};
+    let tok=null; try{ if(loggedIn()) tok=await freshToken(); }catch(e){}
+    if(tok) hdrs["authorization"]="Bearer "+tok; else hdrs["x-app-key"]=c.wSecret||"";
+    return await http(c.wUrl.replace(/\/+$/,""),
+      {method:"POST",headers:hdrs,body:JSON.stringify({prompt,model:c.model,maxTokens:maxTok||3000,images:imgs,vision:true})},
+      d=>{ if(d&&d.error) throw new Error(String(d.error)); return (d&&d.text)||""; });
+  }
+  return "";
+}
+async function captionImages(images){
+  // Zwraca tablicę opisów (1 zdanie/obraz) w kolejności wejścia. Pusty string = pomiń obraz.
+  const list=(images||[]).filter(im=>im.dataUrl).slice(0,16);
+  if(!list.length||!visionAvailable()) return null;
+  const prompt='Otrzymujesz '+list.length+' ilustracji ze slajdów wykładu, w kolejności. Dla KAŻDEJ napisz krótki, rzeczowy podpis PO POLSKU (1 zdanie), mówiący CO PRZEDSTAWIA i czego dotyczy — tak, by dało się ją dopasować do treści notatki (np. „Przekrój opon mózgowych z zaznaczoną oponą twardą, pajęczą i miękką"). Jeśli obraz jest czysto dekoracyjny, to logo, ikona albo slajd tytułowy — wpisz dokładnie "POMIŃ". Zwróć WYŁĄCZNIE tablicę JSON '+list.length+' stringów, bez markdown, np. ["opis 1","POMIŃ","opis 3"]. Nie używaj prostego cudzysłowu " w opisach.';
+  let raw; try{ raw=await askVision(prompt,list,3500); }catch(e){ return null; }
+  let arr=null;
+  try{ const a=raw.indexOf("["),b=raw.lastIndexOf("]"); if(a>=0&&b>a) arr=JSON.parse(raw.slice(a,b+1)); }catch(e){ arr=null; }
+  if(!Array.isArray(arr)) return null;
+  return arr.map(x=>String(x||"").trim());
+}
 function extractJson(s){ if(!s) throw new Error("Pusta odpowiedź AI."); let t=s.trim().replace(/^```(?:json)?/i,"").replace(/```$/,"").trim(); const a=t.indexOf("{"),b=t.lastIndexOf("}"); if(a<0||b<0) throw new Error("AI nie zwróciło danych JSON."); return JSON.parse(t.slice(a,b+1)); }
 function escapeStrayQuotes(s){
   let out="",inStr=false;
@@ -874,7 +922,7 @@ async function ghDeleteNote(id){
   }catch(e){}
 }
 
-const NOTE_PROMPT=(txt,imgSlides)=>`Jesteś najlepszym studentem na roku, który robi notatki, z których uczy się cała grupa przed egzaminem. Na podstawie materiału z wykładu stwórz notatkę PO POLSKU, która sama wystarczy do nauki — bez sięgania po oryginalne slajdy.
+const NOTE_PROMPT=(txt,imgSlides,imgDesc)=>`Jesteś najlepszym studentem na roku, który robi notatki, z których uczy się cała grupa przed egzaminem. Na podstawie materiału z wykładu stwórz notatkę PO POLSKU, która sama wystarczy do nauki — bez sięgania po oryginalne slajdy.
 
 CEL NOTATKI (najważniejsze): notatka ma jednocześnie (a) ZSYNTETYZOWAĆ wykład — pokazać studentowi, czego ma się nauczyć i jak temat jest poukładany, oraz (b) WYJAŚNIĆ każdą rzecz na tyle, by dało się ją zrozumieć od zera. Trafiaj w ZŁOTY ŚRODEK definicji: nie suchy równoważnik ze slajdu („opona twarda — zewnętrzna"), ale i nie rozwlekły akapit; jedno-dwa zdania, które tłumaczą POJĘCIE i jego ZNACZENIE/FUNKCJĘ tak, że student rozumie, a nie tylko przepisuje.
 
@@ -890,7 +938,9 @@ ARCHITEKTURA (to odróżnia świetną notatkę od słabej — przestrzegaj rygor
 KOMPLETNOŚĆ: opracuj CAŁY materiał, od pierwszego do OSTATNIEGO slajdu — końcówki (diagnostyka, terminologia, podsumowania) opracuj tak samo starannie jak początek. Pomijaj WYŁĄCZNIE slajdy organizacyjne (tytuł, plan, bibliografia, „dziękuję").
 
 KONTROLA JAKOŚCI przed zwróceniem: (1) żaden fakt nie powtarza się dwa razy; (2) liczba sekcji mieści się w 6-13 i są pogrupowane w rozdziały; (3) każdy pogrubiony termin to realne pojęcie do nauczenia; (4) definicje trafiają w złoty środek — ani suche, ani rozwlekłe; (5) całość czyta się jak notatka świetnego studenta, nie jak spis treści.
-${imgSlides.length?`OBRAZY: dostępne są zdjęcia ze slajdów: ${imgSlides.join(", ")}. Dla każdego obrazu zadaj sobie pytanie „której KONKRETNEJ sekcji treść on ilustruje?" i wpisz jego numer w "imageSlides" TYLKO tej jednej sekcji, której temat bezpośrednio pokazuje (np. schemat opon → sekcja o oponach, przekrój układu komorowego → sekcja o komorach, mapa unaczynienia → sekcja o ukrwieniu). Jeden obraz = najwyżej jedna sekcja. Gdy przypisujesz obraz, w treści tej sekcji nawiąż do tego, co na nim widać (bez podawania numeru slajdu). Obraz dekoracyjny, ogólny albo niepasujący do żadnej konkretnej sekcji — POMIŃ (nie przypisuj nigdzie). Lepiej zero obrazów niż obraz w złym miejscu.`:`Pole "imageSlides" każdej sekcji zostaw jako pustą listę.`}
+${(imgDesc&&imgDesc.length)?`OBRAZY (z OPISEM, co przedstawiają — bo zostały wcześniej obejrzane): 
+${imgDesc.join("\n")}
+W polu "imageSlides" sekcji wpisz numery tych slajdów, których OPIS pasuje TREŚCIOWO do tej sekcji (np. opis „przekrój opon" → sekcja o oponach, „mapa unaczynienia" → sekcja o ukrwieniu). Dopasowuj po ZNACZENIU opisu, nie po numerze. Jeden obraz = najwyżej jedna sekcja, ta najbardziej pasująca. Gdy przypisujesz obraz, w treści sekcji nawiąż do tego, co na nim widać. Obraz, którego opis nie pasuje wyraźnie do żadnej sekcji — pomiń.`:(imgSlides.length?`OBRAZY: dostępne są zdjęcia ze slajdów: ${imgSlides.join(", ")}. W "imageSlides" sekcji wpisz numer slajdu, którego temat bezpośrednio ilustruje tę sekcję; jeden obraz = jedna sekcja; niepasujące pomiń.`:`Pole "imageSlides" każdej sekcji zostaw jako pustą listę.`)}
 W wartościach tekstowych NIE używaj prostego cudzysłowu " — cytaty zapisuj polskimi „ ". Nie zostawiaj przecinka po ostatnim elemencie listy ani obiektu.
 Zwróć WYŁĄCZNIE poprawny JSON (bez markdown, bez tekstu poza JSON):
 {"title":string,"intro":string (2-4 zdania streszczenia całego wykładu: o czym jest i co student z niego wyniesie; bez powtarzania tytułu),"sections":[{"group":string,"heading":string,"lead":string,"points":string[],"examples":[{"label":string,"text":string}],"table":{"headers":string[],"rows":string[][]}|null,"imageSlides":number[]}]}
@@ -1069,9 +1119,19 @@ async function onGenerate(){
   const f=state.draft; const src=(f.text||"").trim();
   if(src.length<40){ alert("Dodaj plik lub wklej więcej tekstu (min. ~40 znaków)."); return; }
   if(!aiAvailable()){ alert("Najpierw wpisz klucz API w ⚙ Ustawienia AI."); return; }
-  const imgSlides=[...new Set((f.images||[]).map(im=>im.slide).filter(x=>x!=null))].sort((a,b)=>a-b);
-  const t=loadingView("Tworzę notatkę…",["Analizuję materiał wykładu","Wyłapuję kluczowe pojęcia","Dopasowuję zdjęcia do sekcji","Porządkuję strukturę notatki"]);
+  const t=loadingView("Tworzę notatkę…",["Oglądam i opisuję ilustracje","Analizuję materiał wykładu","Wyłapuję kluczowe pojęcia","Dopasowuję zdjęcia do sekcji","Porządkuję strukturę notatki"]);
   try{
+    // FAZA WIZJI: model ogląda obrazy i pisze podpisy (precyzyjne dopasowanie)
+    if(f.images&&f.images.length&&visionAvailable()){
+      try{
+        const caps=await captionImages(f.images);
+        if(caps){ f.images.forEach((im,k)=>{ const c=caps[k]; if(c&&c.toUpperCase()!=="POMIŃ"&&c.toUpperCase()!=="POMIN"){ im.cap=c; im.vis=c; } else { im.cap=""; im.skipImg=(c||"").toUpperCase().indexOf("POMI")===0; } }); }
+      }catch(e){}
+    }
+    // obrazy oznaczone do pominięcia przez wizję wypadają z puli
+    const useImgs=(f.images||[]).filter(im=>!im.skipImg);
+    const imgDesc=useImgs.filter(im=>im.slide!=null).map(im=>im.vis?`slajd ${im.slide}: ${im.vis}`:`slajd ${im.slide}`);
+    const imgSlides=[...new Set(useImgs.map(im=>im.slide).filter(x=>x!=null))].sort((a,b)=>a-b);
     const _prov=getCfg().provider;
     const _hi=Math.max(450,Math.min(2600,Math.round(src.length/28)));
     const _lo=Math.round(_hi*0.7);
@@ -1083,10 +1143,10 @@ WZORZEC JAKOŚCI (tak ma wyglądać Twój output — zwróć uwagę na: syntezę
 {"group":"Płaty kory mózgowej","heading":"Płat skroniowy","lead":"Odpowiada za percepcję słuchową, rozumienie mowy, pamięć semantyczną i rozpoznawanie obiektów. Język przetwarza tu niemal 100% praworęcznych i ~80% leworęcznych.","points":["**Pamięć semantyczna:** magazyn wiedzy o świecie — umożliwia kategoryzację, rozpoznawanie przedmiotów, twarzy i mimiki.","**Afazja Wernickego (czuciowa):** uszkodzenie lewego płata — mowa płynna, ale niezrozumiała, przy utracie rozumienia cudzych wypowiedzi.","**Aprozodia:** utrata zdolności odczytywania i nadawania emocjonalnej melodii mowy."],"examples":[{"label":"Przypadek H.M.","text":"Po obustronnym usunięciu głębokich części płatów skroniowych pacjent stracił zdolność tworzenia nowych wspomnień, dowodząc roli tych struktur w pamięci."}],"table":null,"imageSlides":[]}
 A oto przykład SYNTEZY zamiast przepisywania tabeli (gdy wiele elementów rządzi się wspólną zasadą — podaj zasadę w leadzie, a w tabeli zostaw tylko wyjątki):
 {"group":"Unaczynienie","heading":"Unaczynienie mózgu","lead":"Z lokalizacji udaru można przewidzieć deficyty. Zasada ogólna: powierzchnie boczne płatów żywi tętnica środkowa, przyśrodkowe — przednia, a tył mózgu — tylna.","points":[],"examples":[],"table":{"headers":["Obszar (wyjątki)","Tętnica"],"rows":[["Płat skroniowy (przyśrodkowa)","Środkowa, tylna, przednia naczyniówkowa, łącząca tylna"],["Hipokamp","Naczyniówkowa przednia + gałęzie tylnej"]]},"imageSlides":[]}`:"";
-    const note=await askJson(NOTE_PROMPT(src,imgSlides)+_boost);
+    const note=await askJson(NOTE_PROMPT(src,imgSlides,imgDesc)+_boost);
     if(f.title) note.title=f.title;
     note.sections=note.sections||[]; note.studyQuestions=note.studyQuestions||[];
-    const entry={id:uid(),created:Date.now(),updated:Date.now(),source:src.slice(0,60000),note,quiz:null,images:(f.images||[]).slice(0,20)};
+    const entry={id:uid(),created:Date.now(),updated:Date.now(),source:src.slice(0,60000),note,quiz:null,images:useImgs.slice(0,20)};
     state.notes.unshift(entry); save(); syncSoon();
     clearInterval(t); state.draft={title:"",text:"",fileName:"",images:[]}; openNote(entry.id);
   }catch(err){ clearInterval(t); content.innerHTML=`<div class="banner err">❌ Nie udało się wygenerować notatki: ${esc(err.message)}</div><div class="row"><button class="btn" id="retryGen">↻ Spróbuj ponownie</button><button class="btn ghost" id="back">← Wróć</button></div>`; document.getElementById("back").onclick=renderInput; document.getElementById("retryGen").onclick=onGenerate; }
