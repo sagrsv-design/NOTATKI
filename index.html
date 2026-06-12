@@ -340,9 +340,9 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
     <p class="cfghint">Klucz API wygenerujesz na <b>platform.claude.com</b> → Settings → API keys. Klucz zapisuje się <b>wyłącznie w tej przeglądarce</b> — nie udostępniaj nikomu pliku ani urządzenia z wpisanym kluczem.</p>
     <label class="cfglbl">Dostawca AI</label>
     <select id="cfgProv" class="modelsel" style="width:100%">
-      <option value="anthropic">Anthropic (Claude) — najlepsza jakość, płatny</option>
-      <option value="gemini">Google Gemini — darmowy pakiet</option>
-      <option value="openrouter">OpenRouter — darmowe modele</option>
+      <option value="anthropic">Anthropic (Claude) — najlepsza jakość</option>
+      <option value="gemini">Google Gemini</option>
+      <option value="openrouter">OpenRouter</option>
       <option value="worker">Mój Worker — klucz chroniony na serwerze</option>
     </select>
     <div id="provAnthropic">
@@ -354,7 +354,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
       <select id="cfgModelQ" class="modelsel" style="width:100%"></select>
     </div>
     <div id="provGemini" class="hidden">
-      <p class="cfghint" style="margin:8px 0 0">Darmowy klucz: <b>aistudio.google.com</b> → Get API key (bez karty). Uwaga: w darmowym pakiecie Google może używać treści do trenowania.</p>
+      <p class="cfghint" style="margin:8px 0 0">Klucz API wygenerujesz na <b>aistudio.google.com</b> → Get API key.</p>
       <label class="cfglbl">Klucz API Gemini</label>
       <input type="password" id="cfgGmKey" class="titlefield" placeholder="AIza...">
       <label class="cfglbl">Model notatek</label>
