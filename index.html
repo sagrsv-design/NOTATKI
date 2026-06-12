@@ -1244,8 +1244,7 @@ function renderNote(){
   pane.innerHTML=`
     <div class="note">
       <h1 id="noteTitle">${esc(n.title||"Notatka")}<button class="titledit" id="editTitleBtn" title="Zmień nazwę notatki">✏️</button></h1>
-      <div class="readtime"><span class="doctag">📄 Dokument</span> <span class="dot"></span> ⏱ ~${mins} min <span class="dot"></span> ${(n.sections||[]).length} sekcji${imgCount?` <span class="dot"></span> 🖼️ ${imgCount} ilustr.`:""} <span class="dot"></span> ${new Date(entry.created).toLocaleDateString("pl-PL")}</div>
-      ${introTxt?`<div class="intro">${esc(introTxt)}</div>`:""}
+      <div class="readtime">⏱ ~${mins} min czytania</div>
       <div class="notetools">
         <button class="toolbtn" id="recallBtn" title="Rozwiń lub zwiń wszystkie sekcje">▶ Rozwiń wszystko</button>
         <button class="toolbtn" id="readBtn" title="Większy tekst i odstępy">A+ Czytelność</button>
