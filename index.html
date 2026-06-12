@@ -678,7 +678,7 @@ async function askVision(prompt,images,maxTok){
     const model=c.gmModel||"gemini-2.5-flash";
     const parts=[{text:prompt}].concat(imgs.map(x=>({inlineData:{mimeType:x.mime,data:x.data}})));
     return await http("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(model)+":generateContent?key="+encodeURIComponent(c.gmKey),
-      {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({contents:[{parts}],generationConfig:{maxOutputTokens:maxTok||3000}})},
+      {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({contents:[{parts}],generationConfig:{maxOutputTokens:maxTok||6500}})},
       d=>{ const cand=d&&d.candidates&&d.candidates[0]; return (cand&&cand.content&&cand.content.parts)?cand.content.parts.map(x=>x.text||"").join(""):""; });
   }
   if(c.provider==="anthropic"&&c.apiKey){
@@ -699,10 +699,10 @@ async function askVision(prompt,images,maxTok){
 }
 async function captionImages(images){
   // Zwraca tablicę opisów (1 zdanie/obraz) w kolejności wejścia. Pusty string = pomiń obraz.
-  const list=(images||[]).filter(im=>im.dataUrl).slice(0,16);
+  const list=(images||[]).filter(im=>im.dataUrl).slice(0,30);
   if(!list.length||!visionAvailable()) return null;
   const prompt='Otrzymujesz '+list.length+' ilustracji ze slajdów wykładu, w kolejności. Dla KAŻDEJ napisz krótki, rzeczowy podpis PO POLSKU (1 zdanie), mówiący CO PRZEDSTAWIA i czego dotyczy — tak, by dało się ją dopasować do treści notatki (np. „Przekrój opon mózgowych z zaznaczoną oponą twardą, pajęczą i miękką"). Jeśli obraz jest czysto dekoracyjny, to logo, ikona albo slajd tytułowy — wpisz dokładnie "POMIŃ". Zwróć WYŁĄCZNIE tablicę JSON '+list.length+' stringów, bez markdown, np. ["opis 1","POMIŃ","opis 3"]. Nie używaj prostego cudzysłowu " w opisach.';
-  let raw; try{ raw=await askVision(prompt,list,3500); }catch(e){ return null; }
+  let raw; try{ raw=await askVision(prompt,list,6500); }catch(e){ return null; }
   let arr=null;
   try{ const a=raw.indexOf("["),b=raw.lastIndexOf("]"); if(a>=0&&b>a) arr=JSON.parse(raw.slice(a,b+1)); }catch(e){ arr=null; }
   if(!Array.isArray(arr)) return null;
@@ -935,7 +935,7 @@ ARCHITEKTURA (to odróżnia świetną notatkę od słabej — przestrzegaj rygor
 6. "examples": 0-2 na sekcję, TYLKO gdy realnie pomagają zapamiętać — celna analogia, przypadek kliniczny albo praktyczne zastosowanie. Nie dorabiaj na siłę; przy większości sekcji [].
 7. "table": używaj, gdy treść to naturalne zestawienie (struktura → funkcja, lewa vs prawa półkula, obszar → tętnica, etap → opis). Tabela to znakomite narzędzie do nauki porównań — wykorzystaj ją, gdy materiał na to pozwala. Nie dubluj w punktach tego, co w tabeli.
 
-KOMPLETNOŚĆ: opracuj CAŁY materiał, od pierwszego do OSTATNIEGO slajdu — końcówki (diagnostyka, terminologia, podsumowania) opracuj tak samo starannie jak początek. Pomijaj WYŁĄCZNIE slajdy organizacyjne (tytuł, plan, bibliografia, „dziękuję").
+KOMPLETNOŚĆ — BARDZO WAŻNE: opracuj CAŁY materiał, od pierwszego do OSTATNIEGO slajdu. NAJCZĘSTSZYM BŁĘDEM jest przedwczesne zakończenie notatki — model robi solidny początek, a końcowe slajdy (terminologia, klasyfikacje, definicje, podsumowania, przykłady, wzory, zestawienia) traktuje pobieżnie albo całkiem pomija. Te końcowe zagadnienia MUSZĄ dostać własne sekcje, opracowane tak samo starannie jak początek — z definicją każdego pojęcia z osobna. Zanim zwrócisz odpowiedź, przejrzyj OSTATNIE 20% slajdów i upewnij się, że każde merytoryczne zagadnienie z nich jest w notatce. Pomijaj WYŁĄCZNIE slajdy organizacyjne (tytuł, plan, bibliografia, „dziękuję", dane kontaktowe).
 
 KONTROLA JAKOŚCI przed zwróceniem: (1) żaden fakt nie powtarza się dwa razy; (2) liczba sekcji mieści się w 6-13 i są pogrupowane w rozdziały; (3) każdy pogrubiony termin to realne pojęcie do nauczenia; (4) definicje trafiają w złoty środek — ani suche, ani rozwlekłe; (5) całość czyta się jak notatka świetnego studenta, nie jak spis treści.
 ${(imgDesc&&imgDesc.length)?`OBRAZY (z OPISEM, co przedstawiają — bo zostały wcześniej obejrzane): 
@@ -1125,7 +1125,10 @@ async function onGenerate(){
     if(f.images&&f.images.length&&visionAvailable()){
       try{
         const caps=await captionImages(f.images);
-        if(caps){ f.images.forEach((im,k)=>{ const c=caps[k]; if(c&&c.toUpperCase()!=="POMIŃ"&&c.toUpperCase()!=="POMIN"){ im.cap=c; im.vis=c; } else { im.cap=""; im.skipImg=(c||"").toUpperCase().indexOf("POMI")===0; } }); }
+        if(caps){ f.images.forEach((im,k)=>{ const c=(caps[k]||"").trim(); const up=c.toUpperCase();
+          if(c && up!=="POMIŃ" && up!=="POMIN" && up.indexOf("POMI")!==0){ im.cap=c; im.vis=c; im.skipImg=false; }
+          else { im.cap=""; im.vis=""; im.skipImg=true; } // POMIŃ albo brak opisu = nie wstawiaj
+        }); state._visionOk=true; }
       }catch(e){}
     }
     // obrazy oznaczone do pominięcia przez wizję wypadają z puli
@@ -1135,14 +1138,17 @@ async function onGenerate(){
     const _prov=getCfg().provider;
     const _hi=Math.max(450,Math.min(2600,Math.round(src.length/28)));
     const _lo=Math.round(_hi*0.7);
-    const _boost=(_prov==="gemini"||_prov==="openrouter")?`
+    const _mdl=(modelFor("note")||"");
+    const _needBoost=(_prov==="gemini"||_prov==="openrouter"||/haiku/i.test(_mdl));
+    const _boost=_needBoost?`
 
 KLUCZOWE — OBJĘTOŚĆ I DOKŁADNOŚĆ: nie skracaj notatki. Punkt sekcji to 1-2 pełne zdania wyjaśnienia (nie równoważniki zdań); dawaj 4-7 punktów tam, gdzie materiał ma na to pokrycie — sekcji ubogich w treść nie rozdmuchuj, tylko łącz z pokrewnymi. Notatka ma wystarczyć do nauki BEZ wracania do slajdów po szczegóły. Orientacyjna długość dla TEGO materiału: ${_lo}-${_hi} słów — objętość ma pochodzić z dokładności opracowania źródła, NIGDY z lania wody, powtórzeń ani dopisywania treści spoza materiału.
 
-WZORZEC JAKOŚCI (tak ma wyglądać Twój output — zwróć uwagę na: syntezę zasady ogólnej przed wyjątkami, chirurgiczne pogrubienie tylko terminu egzaminacyjnego, definicję w złotym środku „pojęcie + mechanizm + skutek", przypadki jako examples):
-{"group":"Płaty kory mózgowej","heading":"Płat skroniowy","lead":"Odpowiada za percepcję słuchową, rozumienie mowy, pamięć semantyczną i rozpoznawanie obiektów. Język przetwarza tu niemal 100% praworęcznych i ~80% leworęcznych.","points":["**Pamięć semantyczna:** magazyn wiedzy o świecie — umożliwia kategoryzację, rozpoznawanie przedmiotów, twarzy i mimiki.","**Afazja Wernickego (czuciowa):** uszkodzenie lewego płata — mowa płynna, ale niezrozumiała, przy utracie rozumienia cudzych wypowiedzi.","**Aprozodia:** utrata zdolności odczytywania i nadawania emocjonalnej melodii mowy."],"examples":[{"label":"Przypadek H.M.","text":"Po obustronnym usunięciu głębokich części płatów skroniowych pacjent stracił zdolność tworzenia nowych wspomnień, dowodząc roli tych struktur w pamięci."}],"table":null,"imageSlides":[]}
-A oto przykład SYNTEZY zamiast przepisywania tabeli (gdy wiele elementów rządzi się wspólną zasadą — podaj zasadę w leadzie, a w tabeli zostaw tylko wyjątki):
-{"group":"Unaczynienie","heading":"Unaczynienie mózgu","lead":"Z lokalizacji udaru można przewidzieć deficyty. Zasada ogólna: powierzchnie boczne płatów żywi tętnica środkowa, przyśrodkowe — przednia, a tył mózgu — tylna.","points":[],"examples":[],"table":{"headers":["Obszar (wyjątki)","Tętnica"],"rows":[["Płat skroniowy (przyśrodkowa)","Środkowa, tylna, przednia naczyniówkowa, łącząca tylna"],["Hipokamp","Naczyniówkowa przednia + gałęzie tylnej"]]},"imageSlides":[]}`:"";
+WZORZEC FORMY (przykłady są celowo z RÓŻNYCH dziedzin — pokazują FORMĘ, nie temat; zastosuj tę samą jakość do dziedziny aktualnego wykładu, zwracając uwagę na: chirurgiczne pogrubienie tylko terminu, który student musi znać; definicję w złotym środku „pojęcie + mechanizm/zasada + skutek/znaczenie"; przykład tylko gdy pomaga):
+Przykład sekcji opisowej (dziedzina: ekonomia):
+{"group":"Polityka pieniężna","heading":"Stopy procentowe","lead":"Bank centralny steruje aktywnością gospodarczą, zmieniając koszt pieniądza. Podniesienie stóp hamuje inflację, ale wygasza inwestycje.","points":["**Stopa referencyjna:** główny instrument banku centralnego — wyznacza oprocentowanie pożyczek międzybankowych i pośrednio koszt kredytów dla firm i ludzi.","**Transmisja monetarna:** mechanizm, przez który zmiana stopy dociera do realnej gospodarki — z opóźnieniem rzędu kilku kwartałów.","**Pułapka płynności:** sytuacja, gdy stopy są blisko zera i dalsze obniżki nie pobudzają już gospodarki, bo nikt nie chce pożyczać mimo taniego pieniądza."],"examples":[{"label":"Realne zastosowanie","text":"Gdy inflacja rośnie, bank podnosi stopy — kredyty drożeją, ludzie mniej wydają, popyt spada i ceny się stabilizują."}],"table":null,"imageSlides":[]}
+Przykład SYNTEZY zamiast przepisywania (gdy wiele elementów rządzi się wspólną zasadą — podaj zasadę w leadzie, a w tabeli/punktach zostaw tylko to, co odróżnia; dziedzina: prawo):
+{"group":"Zobowiązania","heading":"Terminy przedawnienia","lead":"Zasada ogólna: roszczenia majątkowe przedawniają się z upływem 6 lat, a roszczenia o świadczenia okresowe i związane z działalnością gospodarczą — 3 lat. Poniżej wyjątki odbiegające od reguły.","points":[],"examples":[],"table":{"headers":["Rodzaj roszczenia (wyjątek)","Termin"],"rows":[["Z umowy sprzedaży (działalność gosp.)","2 lata"],["Z tytułu mandatu/przewozu","1 rok"]]},"imageSlides":[]}`:"";
     const note=await askJson(NOTE_PROMPT(src,imgSlides,imgDesc)+_boost);
     if(f.title) note.title=f.title;
     note.sections=note.sections||[]; note.studyQuestions=note.studyQuestions||[];
