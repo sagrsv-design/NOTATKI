@@ -419,6 +419,10 @@ const LS_KEY="notatkiai.notes.v4";
 const state={notes:[],currentId:null,view:"input",libTab:"notes",sekcje:[],draft:{title:"",text:"",fileName:"",images:[]},quizCfg:{count:8,rogue:false},qz:null};
 const SEK_KEY="notatkiai.sekcje.v1";
 function loadSekcje(){ try{ const o=JSON.parse(localStorage.getItem(SEK_KEY)); if(Array.isArray(o)){ state.sekcje=o; state.sekUpdated=0; } else { state.sekcje=(o&&o.sekcje)||[]; state.sekUpdated=(o&&o.updated)||0; } }catch(e){ state.sekcje=[]; state.sekUpdated=0; } }
+const DEL_KEY="notatkiai.deleted.v1";
+function loadDeleted(){ try{ state.deleted=JSON.parse(localStorage.getItem(DEL_KEY))||{}; }catch(e){ state.deleted={}; } }
+function saveDeleted(){ try{ localStorage.setItem(DEL_KEY,JSON.stringify(state.deleted||{})); }catch(e){} }
+function markDeleted(id){ state.deleted=state.deleted||{}; state.deleted[id]=Date.now(); saveDeleted(); }
 function saveSekcje(){ state.sekUpdated=Date.now(); try{ localStorage.setItem(SEK_KEY,JSON.stringify({sekcje:state.sekcje,updated:state.sekUpdated})); }catch(e){} if(loggedIn()) syncSoon(); }
 function sekStats(sk){ let total=0,mastered=0; (sk.noteIds||[]).forEach(id=>{ const n=state.notes.find(x=>x.id===id); if(n&&n.bank&&n.bank.questions){ const qs=n.bank.questions.filter(q=>!q.skip); total+=qs.length; mastered+=qs.filter(q=>q.streak>=1).length; } }); return {total,mastered,pct:total?Math.round(100*mastered/total):0}; }
 
@@ -818,13 +822,29 @@ async function supaSync(){
   const remote=await supaRest("notes?select=id,updated")||[];
   const rmap={}; remote.forEach(x=>{ rmap[x.id]=+x.updated||0; });
   let pulled=0,pushed=0;
-  const needPull=Object.keys(rmap).filter(id=>{ if(id==="__sekcje__") return false; const l=state.notes.find(n=>n.id===id); const lu=l?(l.updated||l.created||0):-1; return rmap[id]>lu; });
+  const needPull=Object.keys(rmap).filter(id=>{ if(id==="__sekcje__"||id==="__deleted__") return false; if((state.deleted&&state.deleted[id]||0)>=(rmap[id]||0)) return false; const l=state.notes.find(n=>n.id===id); const lu=l?(l.updated||l.created||0):-1; return rmap[id]>lu; });
   for(let i=0;i<needPull.length;i+=8){
     const chunk=needPull.slice(i,i+8);
     const rows=await supaRest("notes?select=id,data,updated&id=in.("+chunk.map(encodeURIComponent).join(",")+")")||[];
     rows.forEach(row=>{ const e=row.data; if(e&&e.id===row.id&&e.note){ e.updated=+row.updated||0; const ix=state.notes.findIndex(n=>n.id===row.id); if(ix>=0) state.notes[ix]=e; else state.notes.push(e); pulled++; } });
   }
-  const toPush=state.notes.filter(n=>{ if(n.id==="demo-neuro-1") return false; const lu=n.updated||n.created||0; return !(n.id in rmap)||lu>rmap[n.id]; });
+  // --- Nagrobki (usunięcia) ---
+  state.deleted=state.deleted||{};
+  let delChanged=false;
+  if("__deleted__" in rmap){
+    const dr=await supaRest("notes?select=data&id=eq.__deleted__")||[];
+    const rdel=(dr[0]&&dr[0].data&&dr[0].data.ids)||{};
+    for(const id in rdel){ if(!(id in state.deleted)||rdel[id]>state.deleted[id]){ state.deleted[id]=rdel[id]; delChanged=true; } }
+  }
+  // zastosuj usunięcia lokalnie: notatka starsza niż nagrobek znika
+  let appliedDel=0;
+  for(const id in state.deleted){
+    const ix=state.notes.findIndex(n=>n.id===id);
+    if(ix>=0 && (state.notes[ix].updated||state.notes[ix].created||0)<=state.deleted[id]){ state.notes.splice(ix,1); removeNotePersist(id); appliedDel++; }
+  }
+  if(appliedDel) save();
+  saveDeleted();
+  const toPush=state.notes.filter(n=>{ if(n.id==="demo-neuro-1") return false; const lu=n.updated||n.created||0; if((state.deleted[n.id]||0)>=lu) return false; return !(n.id in rmap)||lu>rmap[n.id]; });
   for(let i=0;i<toPush.length;i+=4){
     const chunk=toPush.slice(i,i+4).map(n=>({id:n.id,data:n,updated:n.updated||n.created||0}));
     await supaRest("notes",{method:"POST",headers:{"prefer":"resolution=merge-duplicates"},body:JSON.stringify(chunk)});
@@ -840,7 +860,11 @@ async function supaSync(){
     await supaRest("notes",{method:"POST",headers:{"prefer":"resolution=merge-duplicates"},body:JSON.stringify([{id:"__sekcje__",data:{sekcje:state.sekcje},updated:lSek}])});
     pushed++;
   }
-  if(pulled){ state.notes.sort((a,b)=>(b.created||0)-(a.created||0)); save(); if(state.view==="home") renderHome(); else renderLib(); }
+  // wyślij scalony rejestr nagrobków, jeśli mamy jakiekolwiek
+  if(Object.keys(state.deleted).length){
+    await supaRest("notes",{method:"POST",headers:{"prefer":"resolution=merge-duplicates"},body:JSON.stringify([{id:"__deleted__",data:{ids:state.deleted},updated:Date.now()}])});
+  }
+  if(pulled||appliedDel){ state.notes.sort((a,b)=>(b.created||0)-(a.created||0)); save(); if(state.view==="home") renderHome(); else renderLib(); }
   else if(sekChanged && state.view==="home") renderHome();
   return {pulled:pulled,pushed:pushed};
 }
@@ -1488,7 +1512,7 @@ function printNote(){
   document.querySelectorAll(".sec.collapsed").forEach(x=>x.classList.remove("collapsed"));
   window.print();
 }
-function delNote(id){ if(!confirm("Usunąć tę notatkę?")) return; state.notes=state.notes.filter(n=>n.id!==id); removeNotePersist(id); deleteRemote(id); if(state.currentId===id){ state.currentId=null; renderHome(); } else if(state.view==="home") renderHome(); else renderLib(); }
+function delNote(id){ if(!confirm("Usunąć tę notatkę?")) return; markDeleted(id); state.notes=state.notes.filter(n=>n.id!==id); removeNotePersist(id); deleteRemote(id); syncSoon(); if(state.currentId===id){ state.currentId=null; renderHome(); } else if(state.view==="home") renderHome(); else renderLib(); }
 
 document.getElementById("fileInput").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) handleFile(f); e.target.value=""; });
 document.getElementById("newBtn").onclick=()=>{ state.draft={title:"",text:"",fileName:"",images:[]}; renderInput(); };
@@ -1609,6 +1633,7 @@ function updateAuthUi(){
 (async function init(){
   await loadNotes();
   loadSekcje();
+  loadDeleted();
   if(state.notes.some(n=>n.id==="demo-neuro-1")){ state.notes=state.notes.filter(n=>n.id!=="demo-neuro-1"); removeNotePersist("demo-neuro-1"); }
   state.notes.sort((a,b)=>(b.created||0)-(a.created||0));
   setupChrome();
