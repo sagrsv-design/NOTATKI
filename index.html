@@ -841,6 +841,7 @@ async function supaSync(){
   for(const id in state.deleted){
     const ix=state.notes.findIndex(n=>n.id===id);
     if(ix>=0 && (state.notes[ix].updated||state.notes[ix].created||0)<=state.deleted[id]){ state.notes.splice(ix,1); removeNotePersist(id); appliedDel++; }
+    if(id in rmap){ try{ await supaRest("notes?id=eq."+encodeURIComponent(id),{method:"DELETE"}); }catch(e){} }
   }
   if(appliedDel) save();
   saveDeleted();
@@ -1357,11 +1358,16 @@ async function generateBank(entry){
   const gap=prov==="gemini"?(modelFor("quiz")==="gemini-2.5-pro"?13000:6500):(prov==="openrouter"?3500:0);
   for(let i=0;i<secs.length;i++){
     if(i>0&&gap) await new Promise(res=>setTimeout(res,gap));
-    pane.innerHTML=`<div class="center"><div><div class="spinner"></div><h3 style="color:var(--ink);margin:0 0 6px">Buduję bank pytań…</h3><div class="steps">Sekcja ${i+1} z ${secs.length}: ${esc(secs[i].heading||"")}<br>pytań w banku: ${all.length}</div></div></div>`;
-    try{
-      const data=await askJson(BANK_PROMPT(entry.note.title||"",sectionText(secs[i])),"quiz");
-      (data.questions||[]).forEach(qq=>{ if(qq&&qq.q&&qq.options&&qq.options.length===4&&qq.correct>=0&&qq.correct<=3) all.push({q:qq.q,options:qq.options,correct:qq.correct,explanation:qq.explanation||"",sec:secs[i].heading||"",streak:0,wrong:0,seen:0}); });
-    }catch(e){ failed++; }
+    let got=0;
+    for(let attempt=0; attempt<3 && got===0; attempt++){
+      if(attempt>0) await new Promise(res=>setTimeout(res,gap||4000)); // pauza przed ponowieniem
+      pane.innerHTML=`<div class="center"><div><div class="spinner"></div><h3 style="color:var(--ink);margin:0 0 6px">Buduję bank pytań…</h3><div class="steps">Sekcja ${i+1} z ${secs.length}: ${esc(secs[i].heading||"")}${attempt>0?` (próba ${attempt+1})`:""}<br>pytań w banku: ${all.length}</div></div></div>`;
+      try{
+        const data=await askJson(BANK_PROMPT(entry.note.title||"",sectionText(secs[i])),"quiz");
+        (data.questions||[]).forEach(qq=>{ if(qq&&qq.q&&qq.options&&qq.options.length===4&&qq.correct>=0&&qq.correct<=3){ all.push({q:qq.q,options:qq.options,correct:qq.correct,explanation:qq.explanation||"",sec:secs[i].heading||"",streak:0,wrong:0,seen:0}); got++; } });
+      }catch(e){}
+    }
+    if(got===0) failed++;
   }
   if(!all.length){ alert("Nie udało się zbudować banku pytań — spróbuj ponownie."); state.view="bank"; renderNote(); return; }
   entry.bank={questions:all,created:Date.now()}; entry.updated=Date.now(); save(); syncSoon();
@@ -1415,15 +1421,12 @@ function renderMastery(){
       ${qq.options.map((o,oi)=>{ let cls="opt"; if(ms.revealed){ if(oi===qq.correct) cls+=" correct"; else if(ms.picked>=0&&oi===ms.picked) cls+=" wrong"; } else if(ms.picked===oi) cls+=" sel"; return `<div class="${cls}" data-oi="${oi}"><span class="mk">${ms.revealed&&oi===qq.correct?"✓":ms.revealed&&ms.picked>=0&&oi===ms.picked?"✗":""}</span><span class="ot">${esc(o)}</span></div>`; }).join("")}
       ${ms.revealed&&qq.explanation?`<div class="exp">${esc(qq.explanation)}</div>`:""}
     </div>
-    <div class="row"><button class="btn" id="msCheck" ${ms.picked==null?"disabled":""}>${ms.revealed?"Dalej →":"Sprawdź"}</button><button class="btn ghost" id="msNw" title="Nie znam — pytanie wróci">🤔 Nie wiem</button><button class="btn ghost" id="msSkip" title="Usuń pytanie na stałe">🚫 Pomiń</button><button class="btn ghost" id="msQuit">Zakończ</button></div>`;
-  if(!ms.revealed) pane.querySelectorAll(".opt").forEach(el=>el.onclick=()=>{ ms.picked=+el.getAttribute("data-oi"); renderMastery(); });
+    <div class="row">${ms.revealed?`<button class="btn" id="msNext">Dalej →</button>`:`<button class="btn ghost" id="msNw" title="Nie znam — pytanie wróci">🤔 Nie wiem</button>`}<button class="btn ghost" id="msSkip" title="Usuń pytanie na stałe">🚫 Pomiń</button><button class="btn ghost" id="msQuit">Zakończ</button></div>`;
   function persist(){ it.note.updated=Date.now(); save(); syncSoon(); }
-  document.getElementById("msCheck").onclick=()=>{
-    if(!ms.revealed){ ms.revealed=true; qq.seen++; if(ms.picked===qq.correct){ qq.streak++; ms.ok++; } else { qq.streak=0; qq.wrong++; } persist(); renderMastery(); }
-    else { ms.pos++; ms.picked=null; ms.revealed=false; renderMastery(); }
-  };
+  if(!ms.revealed) pane.querySelectorAll(".opt").forEach(el=>el.onclick=()=>{ ms.picked=+el.getAttribute("data-oi"); ms.revealed=true; qq.seen++; if(ms.picked===qq.correct){ qq.streak++; ms.ok++; } else { qq.streak=0; qq.wrong++; } persist(); renderMastery(); });
+  const _next=document.getElementById("msNext"); if(_next) _next.onclick=()=>{ ms.pos++; ms.picked=null; ms.revealed=false; renderMastery(); };
   document.getElementById("msQuit").onclick=()=>deck.onBack();
-  document.getElementById("msNw").onclick=()=>{ if(ms.revealed) return; qq.seen++; qq.streak=0; qq.wrong+=2; ms.revealed=true; ms.picked=-1; persist(); renderMastery(); };
+  const _nw=document.getElementById("msNw"); if(_nw) _nw.onclick=()=>{ qq.seen++; qq.streak=0; qq.wrong+=2; ms.revealed=true; ms.picked=-1; persist(); renderMastery(); };
   document.getElementById("msSkip").onclick=()=>{ qq.skip=true; persist(); ms.items.splice(ms.pos,1); if(ms.pos>=ms.items.length&&!ms.items.length){ deck.onBack(); return; } ms.picked=null; ms.revealed=false; renderMastery(); };
 }
 
@@ -1511,7 +1514,7 @@ function printNote(){
   document.querySelectorAll(".sec.collapsed").forEach(x=>x.classList.remove("collapsed"));
   window.print();
 }
-function delNote(id){ if(!confirm("Usunąć tę notatkę?")) return; markDeleted(id); state.notes=state.notes.filter(n=>n.id!==id); removeNotePersist(id); deleteRemote(id); syncSoon(); if(state.currentId===id){ state.currentId=null; renderHome(); } else if(state.view==="home") renderHome(); else renderLib(); }
+function delNote(id){ if(!confirm("Usunąć tę notatkę?")) return; markDeleted(id); state.notes=state.notes.filter(n=>n.id!==id); removeNotePersist(id); deleteRemote(id); if(loggedIn()) syncNow(true); if(state.currentId===id){ state.currentId=null; renderHome(); } else if(state.view==="home") renderHome(); else renderLib(); }
 
 document.getElementById("fileInput").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) handleFile(f); e.target.value=""; });
 document.getElementById("newBtn").onclick=()=>{ state.draft={title:"",text:"",fileName:"",images:[]}; renderInput(); };
