@@ -70,10 +70,16 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(
 .dot{width:4px;height:4px;border-radius:50%;background:#c6c6c2}
 .doctag{display:inline-flex;align-items:center;gap:5px;background:#ededea;color:#5d5e66;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600}
 .intro{font-style:italic;color:#4b4c54;background:#fafaf9;border-left:3px solid var(--accent-line);border-radius:0 10px 10px 0;padding:13px 16px;margin:6px 0 18px;line-height:1.6}
+.introwrap{margin:6px 0 18px}
+.intro .intromore{font-style:normal;font-weight:600;color:var(--accent);cursor:pointer;white-space:nowrap}
+.intro.expanded .introshort{display:none}
+.intro:not(.expanded) .introfull{display:none}
 .notetools{display:flex;gap:8px;margin:0 0 18px;flex-wrap:wrap}
 .toolbtn{border:1px solid var(--accent-line);background:var(--panel);color:var(--accent);font-weight:600;font-size:13px;padding:7px 13px;border-radius:10px}
 .toolbtn:hover{background:var(--accent-soft)}
 .toolbtn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.toolbtn.danger{color:var(--bad);border-color:var(--bad-soft)}
+.toolbtn.danger:hover{background:var(--bad-soft);border-color:var(--bad)}
 .gh{font-size:20px;font-weight:700;margin:38px 0 16px;padding-top:26px;border-top:1px solid var(--border);letter-spacing:-.2px}
 .gh:first-of-type{border-top:none;padding-top:6px}
 .ghhl{background:linear-gradient(transparent 56%, var(--hl) 56%);padding:0 5px 1px;border-radius:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
@@ -1021,7 +1027,7 @@ function renderHome(){
   const sn=state.sekcje.length;
   if(tab==="sekcje"){
     const skCards=state.sekcje.length?state.sekcje.map(sk=>{ const st=sekStats(sk); const nb=(sk.noteIds||[]).filter(id=>{const n=state.notes.find(x=>x.id===id);return n&&n.bank&&n.bank.questions&&n.bank.questions.length;}).length;
-      return `<div class="hcard" data-hsk="${sk.id}"><div class="hbody"><h4>${esc(sk.name)}</h4><p>${nb} ${plural(nb,"bank","banki","banków")} · ${st.total} ${plural(st.total,"pytanie","pytania","pytań")}…</p><div class="hmeta">🎯 opanowano ${st.mastered}/${st.total} (${st.pct}%)</div></div><button class="hdel" data-skdel="${sk.id}" title="Usuń sekcję">🗑</button><span class="hchev">›</span></div>`;
+      return `<div class="hcard" data-hsk="${sk.id}"><div class="hbody"><h4>${esc(sk.name)}</h4><p>${nb} ${plural(nb,"bank","banki","banków")} · ${st.total} ${plural(st.total,"pytanie","pytania","pytań")}…</p><div class="hmeta">🎯 opanowano ${st.mastered}/${st.total} (${st.pct}%)</div></div><span class="hchev">›</span></div>`;
     }).join(""):`<div class="hempty">Brak sekcji. Utwórz sekcję, by połączyć kilka banków pytań i uczyć się ich razem.</div>`;
     content.innerHTML=`
     <div class="home">
@@ -1037,8 +1043,7 @@ function renderHome(){
       <div class="haddwrap"><button class="hadd" id="homeNewSek">＋ Nowa sekcja</button></div>
     </div>`;
     content.querySelectorAll("[data-ht]").forEach(b=>b.onclick=()=>{ state.libTab=b.getAttribute("data-ht"); renderHome(); });
-    content.querySelectorAll("[data-skdel]").forEach(b=>b.onclick=e=>{ e.stopPropagation(); if(confirm("Usunąć tę sekcję? (notatki i banki pozostaną)")){ state.sekcje=state.sekcje.filter(x=>x.id!==b.getAttribute("data-skdel")); saveSekcje(); renderHome(); } });
-    content.querySelectorAll("[data-hsk]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-skdel]")) return; openSekcja(el.getAttribute("data-hsk")); });
+    content.querySelectorAll("[data-hsk]").forEach(el=>el.onclick=()=>openSekcja(el.getAttribute("data-hsk")));
     document.getElementById("homeNewSek").onclick=()=>{ const name=(prompt("Nazwa nowej sekcji:")||"").trim(); if(!name) return; const sk={id:uid(),name,noteIds:[]}; state.sekcje.unshift(sk); saveSekcje(); openSekcja(sk.id); };
     return;
   }
@@ -1050,7 +1055,7 @@ function renderHome(){
     if(tab==="quizzes"){ meta=`🧠 ${n.quiz.length} ${plural(n.quiz.length,"pytanie","pytania","pytań")} · ${new Date(n.created).toLocaleDateString("pl-PL")}`; attr=`data-hq="${n.id}"`; }
     else if(tab==="banks"){ meta=`🏦 ${n.bank.questions.length} ${plural(n.bank.questions.length,"pytanie","pytania","pytań")} · 🎯 opanowano ${bankPct}% · ${new Date(n.created).toLocaleDateString("pl-PL")}`; attr=`data-hb="${n.id}"`; }
     else { meta=[new Date(n.created).toLocaleDateString("pl-PL"),`${wordCount(n.note)} słów`,n.quiz?"🧠 quiz":"",bankPct!=null?`🏦 ${bankPct}%`:""].filter(Boolean).join(" · "); attr=`data-hn="${n.id}"`; }
-    return `<div class="hcard" ${attr}><div class="hbody"><h4>${esc(n.note.title||"Bez tytułu")}</h4><p>${sub}…</p><div class="hmeta">${meta}</div></div><button class="hdel" data-hdel="${n.id}" title="Usuń notatkę">🗑</button><span class="hchev">›</span></div>`;
+    return `<div class="hcard" ${attr}><div class="hbody"><h4>${esc(n.note.title||"Bez tytułu")}</h4><p>${sub}…</p><div class="hmeta">${meta}</div></div><span class="hchev">›</span></div>`;
   }).join(""):`<div class="hempty">${tab==="quizzes"?"Brak quizów. Otwórz notatkę i kliknij „Stwórz quiz”.":tab==="banks"?"Brak banków pytań. Otwórz notatkę → zakładka 🏦 Bank → ✨ Zbuduj bank.":"Brak notatek. Dodaj pierwszą przyciskiem na dole."}</div>`;
   content.innerHTML=`
     <div class="home">
@@ -1066,10 +1071,9 @@ function renderHome(){
       <div class="haddwrap"><button class="hadd" id="homeNew">＋ Dodaj notatkę</button></div>
     </div>`;
   content.querySelectorAll("[data-ht]").forEach(b=>b.onclick=()=>{ state.libTab=b.getAttribute("data-ht"); renderHome(); });
-  content.querySelectorAll("[data-hdel]").forEach(b=>b.onclick=e=>{ e.stopPropagation(); delNote(b.getAttribute("data-hdel")); });
-  content.querySelectorAll("[data-hn]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-hdel]")) return; openNote(el.getAttribute("data-hn")); });
-  content.querySelectorAll("[data-hq]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-hdel]")) return; state.currentId=el.getAttribute("data-hq"); state.qz=null; state.view="quiz"; renderNote(); });
-  content.querySelectorAll("[data-hb]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-hdel]")) return; state.currentId=el.getAttribute("data-hb"); state.qz=null; state.view="bank"; renderNote(); });
+  content.querySelectorAll("[data-hn]").forEach(el=>el.onclick=()=>openNote(el.getAttribute("data-hn")));
+  content.querySelectorAll("[data-hq]").forEach(el=>el.onclick=()=>{ state.currentId=el.getAttribute("data-hq"); state.qz=null; state.view="quiz"; renderNote(); });
+  content.querySelectorAll("[data-hb]").forEach(el=>el.onclick=()=>{ state.currentId=el.getAttribute("data-hb"); state.qz=null; state.view="bank"; renderNote(); });
   document.getElementById("homeNew").onclick=()=>{ state.draft={title:"",text:"",fileName:"",images:[]}; renderInput(); };
 }
 
@@ -1087,7 +1091,7 @@ function openSekcja(id){
       <h1 class="hello" style="font-size:clamp(24px,6vw,32px)">${esc(sk.name)} <button class="titledit" id="skRename" title="Zmień nazwę">✏️</button></h1>
       <div class="hellosub">${st.total} ${plural(st.total,"pytanie","pytania","pytań")} łącznie · 🎯 opanowano ${st.mastered}/${st.total} (${st.pct}%)</div>
       <div class="msbar" style="max-width:420px;margin:0 0 16px"><div class="msfill" style="width:${st.pct}%"></div></div>
-      <div class="row" style="margin:0 0 20px"><button class="btn" id="skTrain" ${st.total?"":"disabled"}>🎯 Ucz się (${st.total} pyt.)</button></div>
+      <div class="row" style="margin:0 0 20px"><button class="btn" id="skTrain" ${st.total?"":"disabled"}>🎯 Ucz się (${st.total} pyt.)</button><button class="btn ghost" id="skDelBtn" style="color:var(--bad)">🗑 Usuń sekcję</button></div>
       <div class="sublabel">Banki w sekcji</div>
       <div class="hlist" style="margin-bottom:18px">${memberCards}</div>
       <div class="sublabel">Dodaj banki do sekcji</div>
@@ -1095,6 +1099,7 @@ function openSekcja(id){
       ${avail.length?`<div class="row"><button class="btn ghost" id="skAdd">＋ Dodaj zaznaczone</button></div>`:""}
     </div>`;
   document.getElementById("skBack").onclick=()=>{ state.libTab="sekcje"; renderHome(); };
+  document.getElementById("skDelBtn").onclick=()=>{ if(confirm("Usunąć tę sekcję? (notatki i banki pozostaną)")){ state.sekcje=state.sekcje.filter(x=>x.id!==id); saveSekcje(); state.libTab="sekcje"; renderHome(); } };
   document.getElementById("skTrain").onclick=()=>startSekcjaMastery(sk);
   document.getElementById("skRename").onclick=()=>{ const v=(prompt("Nowa nazwa sekcji:",sk.name)||"").trim(); if(v){ sk.name=v; saveSekcje(); openSekcja(id); } };
   content.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ sk.noteIds=sk.noteIds.filter(x=>x!==b.getAttribute("data-rm")); saveSekcje(); openSekcja(id); });
@@ -1246,11 +1251,13 @@ function renderNote(){
     <div class="note">
       <h1 id="noteTitle">${esc(n.title||"Notatka")}<button class="titledit" id="editTitleBtn" title="Zmień nazwę notatki">✏️</button></h1>
       <div class="readtime">⏱ ~${mins} min czytania</div>
+      ${introTxt?(introTxt.length>150?`<div class="intro" id="introBox"><span class="introshort">${esc(introTxt.slice(0,150).replace(/\s+\S*$/,""))}… <span class="intromore" id="introMore">rozwiń ▾</span></span><span class="introfull">${esc(introTxt)} <span class="intromore" id="introLess">zwiń ▴</span></span></div>`:`<div class="intro">${esc(introTxt)}</div>`):""}
       <div class="notetools">
         <button class="toolbtn" id="recallBtn" title="Rozwiń lub zwiń wszystkie sekcje">▶ Rozwiń wszystko</button>
         <button class="toolbtn" id="readBtn" title="Większy tekst i odstępy">A+ Czytelność</button>
         <button class="toolbtn" id="exportBtn" title="Zapisz notatkę do pliku — do przeniesienia na inne urządzenie">📤 Eksportuj</button>
         <button class="toolbtn" id="pdfBtn" title="Zapisz notatkę jako PDF">📄 Pobierz PDF</button>
+        <button class="toolbtn danger" id="delNoteBtn" title="Usuń całą notatkę (wraz z quizem i bankiem)">🗑 Usuń notatkę</button>
       </div>
       ${bodyHtml}
       <div class="row" style="margin-top:26px"><button class="btn" id="goQuiz">🧠 ${entry.quiz?"Rozwiąż quiz":"Stwórz quiz z tej notatki"}</button></div>
@@ -1262,6 +1269,9 @@ function renderNote(){
   recallBtn.onclick=()=>{ expanded=!expanded; pane.querySelectorAll(".sec").forEach(se=>se.classList.toggle("collapsed",!expanded)); recallBtn.textContent=expanded?"▼ Zwiń wszystko":"▶ Rozwiń wszystko"; recallBtn.classList.toggle("active",expanded); };
   const readBtn=document.getElementById("readBtn");
   readBtn.onclick=()=>{ noteEl.classList.toggle("readable"); readBtn.classList.toggle("active"); };
+  const _iMore=document.getElementById("introMore"); if(_iMore) _iMore.onclick=()=>document.getElementById("introBox").classList.add("expanded");
+  const _iLess=document.getElementById("introLess"); if(_iLess) _iLess.onclick=()=>document.getElementById("introBox").classList.remove("expanded");
+  document.getElementById("delNoteBtn").onclick=()=>delNote(entry.id);
   document.getElementById("exportBtn").onclick=()=>exportNote(entry);
   document.getElementById("pdfBtn").onclick=printNote;
   const gq=document.getElementById("goQuiz"); if(gq) gq.onclick=()=>{ state.qz=null; state.view="quiz"; renderNote(); };
@@ -1289,7 +1299,7 @@ function renderBankPane(){
       <p class="qsub">${b?`${bs.total} ${plural(bs.total,"pytanie","pytania","pytań")} · opanowano <b>${bs.mastered}</b> (${bs.pct}%)${bs.skipped?` · ${bs.skipped} pominięto`:""}`:"Pytania pokrywające 100% materiału tej notatki (zwykle 40-70)."}</p>
       ${b?`<div class="msbar" style="max-width:340px;margin:0 auto 18px"><div class="msfill" style="width:${bs.pct}%"></div></div>`:""}
       <div class="row" style="justify-content:center">
-        ${b?`<button class="btn" id="msStart">▶ Ćwicz</button><button class="btn ghost" id="bankReset">↺ Resetuj postęp</button><button class="btn ghost" id="bankRegen">✨ Zbuduj od nowa</button>`:`<button class="btn" id="bankGen">✨ Zbuduj bank pytań</button>`}
+        ${b?`<button class="btn" id="msStart">▶ Ćwicz</button><button class="btn ghost" id="bankReset">↺ Resetuj postęp</button><button class="btn ghost" id="bankRegen">✨ Zbuduj od nowa</button><button class="btn ghost" id="bankDel" style="color:var(--bad)">🗑 Usuń bank</button>`:`<button class="btn" id="bankGen">✨ Zbuduj bank pytań</button>`}
       </div>
       <p class="qopthint" style="max-width:430px;margin:16px auto 0">${b?"Pytanie uznajemy za opanowane po 1 poprawnej odpowiedzi, a błędne wracają w kolejnych rundach. Pytania zbędne możesz trwale pominąć przyciskiem podczas nauki. Budowa od nowa zastąpi bank wraz z postępem.":"Aplikacja przejdzie notatkę sekcja po sekcji i ułoży pytania sprawdzające każdy fakt — tak, by dało się opanować 100% materiału."}</p>
       ${!aiAvailable()?`<div class="banner warn" style="margin-top:14px;text-align:left">⚠️ Aby budować bank, wpisz klucz API w <b>⚙ Ustawienia AI</b>.</div>`:""}
@@ -1298,6 +1308,7 @@ function renderBankPane(){
   const msb=document.getElementById("msStart"); if(msb) msb.onclick=()=>startMastery(entry);
   const br=document.getElementById("bankReset"); if(br) br.onclick=()=>{ if(confirm("Wyzerować postęp banku pytań?")){ entry.bank.questions.forEach(x=>{x.streak=0;x.wrong=0;x.seen=0;}); entry.updated=Date.now(); save(); syncSoon(); renderBankPane(); } };
   const brg=document.getElementById("bankRegen"); if(brg) brg.onclick=()=>{ if(confirm("Zbudować bank od nowa? Obecne pytania i postęp zostaną zastąpione.")) generateBank(entry); };
+  const bdl=document.getElementById("bankDel"); if(bdl) bdl.onclick=()=>{ if(confirm("Usunąć bank pytań tej notatki? (notatka zostanie)")){ entry.bank=null; entry.updated=Date.now(); save(); syncSoon(); renderBankPane(); } };
 }
 function renderQuizPane(){
   const entry=state.notes.find(n=>n.id===state.currentId); const pane=document.getElementById("pane");
@@ -1323,7 +1334,7 @@ function renderQuizSetup(entry,pane){
       </div>
       <div class="row" style="justify-content:center">
         <button class="btn" id="qGen">✨ Generuj <span id="qGenN">${cfg.count}</span> pytań</button>
-        ${has?`<button class="btn ghost" id="qPlay">▶ Zagraj (${entry.quiz.length})</button>`:""}
+        ${has?`<button class="btn ghost" id="qPlay">▶ Zagraj (${entry.quiz.length})</button><button class="btn ghost" id="qDel" style="color:var(--bad)">🗑 Usuń quiz</button>`:""}
       </div>
       
       ${!aiAvailable()?`<div class="banner warn" style="margin-top:14px;text-align:left">⚠️ Aby generować quizy, wpisz klucz API w <b>⚙ Ustawienia AI</b>.</div>`:""}
@@ -1333,6 +1344,7 @@ function renderQuizSetup(entry,pane){
   document.getElementById("qRogue").onchange=e=>{ cfg.rogue=e.target.checked; };
   document.getElementById("qGen").onclick=()=>requestQuiz(cfg.count);
   const pb=document.getElementById("qPlay"); if(pb) pb.onclick=()=>startQuiz(entry);
+  const qd=document.getElementById("qDel"); if(qd) qd.onclick=()=>{ if(confirm("Usunąć quiz tej notatki? (notatka zostanie)")){ entry.quiz=null; entry.updated=Date.now(); save(); syncSoon(); renderQuizSetup(entry,pane); } };
 }
 
 function sectionText(sec){
