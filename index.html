@@ -312,6 +312,9 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
 .float{position:absolute;left:50%;transform:translateX(-50%);top:30px;font-weight:800;color:#d83a52;font-size:22px;animation:floatup 1s ease-out;pointer-events:none}
 .float.sm{position:static;display:inline;font-size:14px;animation:none}
+.affix{display:inline-block;font-size:10px;font-weight:700;background:#3a2030;color:#ffb3c0;border-radius:6px;padding:1px 6px;vertical-align:middle}
+.covbar{margin:0 0 8px}
+.covlbl{font-size:11.5px;color:var(--muted);margin-bottom:3px;text-align:center}
 @keyframes floatup{from{opacity:1;top:40px}to{opacity:0;top:0}}
 .battleq{background:linear-gradient(135deg,rgba(255,255,255,.78),rgba(255,255,255,.55));border:1px solid rgba(255,255,255,.6);border-radius:14px;padding:13px 15px;margin:0 0 10px}
 .battle{display:flex;flex-direction:column}
@@ -1306,13 +1309,23 @@ const ITEM_RANKS=[
 ];
 
 const SLAV=[["Polewik","🌾"],["Skrzat","🧌"],["Utopiec","🧜"],["Południca","☀️"],["Wodnik","💧"],["Mamuna","👶"],["Licho","🃏"],["Strzyga","🧛"],["Wilkołak","🐺"],["Borowy","🐗"],["Nocnica","🦉"],["Mara","👻"],["Bies","😈"],["Czart","🐐"],["Leszy","🌲"],["Żmij","🐉"],["Płanetnik","🌩️"],["Wij","🪱"],["Babojga","🧙‍♀️"],["Kościej","☠️"]];
+const AFFIXES=[
+  {k:"armored",ic:"🛡",name:"Opancerzony",desc:"Pochłania ~30% Twoich obrażeń"},
+  {k:"vampiric",ic:"🩸",name:"Wampir",desc:"Leczy się, gdy się pomylisz"},
+  {k:"thorny",ic:"🌵",name:"Kolczasty",desc:"Rani Cię, gdy go trafiasz"},
+  {k:"enraged",ic:"😡",name:"Wściekły",desc:"Uderza mocniej"}
+];
 function makeEnemy(idx,lvl,boss){
   const rk=ENEMY_RANKS[Math.min((lvl||1)-1,14)]; const nm=rk.l[idx%rk.l.length]; const loop=Math.floor(idx/rk.l.length);
   let hp=Math.round((30+idx*15+lvl*6)*(1+loop*0.6));
   let atk=Math.round((5+idx*2+lvl)*(1+loop*0.4));
   let name=nm.charAt(0).toUpperCase()+nm.slice(1)+(loop?" +"+loop:"");
   if(boss){ hp=Math.round(hp*1.9); atk=Math.round(atk*1.4); name="👑 "+name+" (Boss)"; }
-  return {name:name,emoji:rk.e,maxHp:hp,hp:hp,atk:atk,boss:!!boss};
+  let affix=null;
+  if(boss && Math.random()<0.85) affix=AFFIXES[Math.floor(Math.random()*AFFIXES.length)];
+  else if(!boss && idx>=2 && Math.random()<0.30) affix=AFFIXES[Math.floor(Math.random()*AFFIXES.length)];
+  if(affix && affix.k==="enraged") atk=Math.round(atk*1.35);
+  return {name:name,emoji:rk.e,maxHp:hp,hp:hp,atk:atk,boss:!!boss,affix:affix?affix.k:null,affixIc:affix?affix.ic:"",affixName:affix?affix.name:""};
 }
 function rpgShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function rpgPoolAll(){ const out=[]; state.notes.forEach(n=>{ if(n.bank&&n.bank.questions) n.bank.questions.forEach(q=>{ if(!q.skip&&q.options&&q.options.length===4) out.push(q); }); }); return out; }
@@ -1484,6 +1497,7 @@ function renderBattle(){
   content.innerHTML=`
     <div class="battle">
       <div class="bbar"><button class="backbtn" id="bExit" style="margin:0">‹ Przerwij</button><span class="bmeta">${esc(rankName(h))} · 🪙 ${h.coins} <button class="tb-btn" id="bInv" style="padding:3px 8px;margin-left:4px">🎒</button> <button class="tb-btn" id="bShop" style="padding:3px 8px">🛒</button></span></div>
+      ${(()=>{ const tot=r.pool.length, mas=r.pool.filter(q=>(q.streak||0)>=1).length, pct=tot?Math.round(100*mas/tot):0; return `<div class="covbar"><div class="covlbl">📚 Opanowano ${mas}/${tot} pytań banku (${pct}%)</div><div class="msbar"><div class="msfill" style="width:${pct}%"></div></div></div>`; })()}
       <div class="arena">
         <div class="combatant hero ${r.heroHurt?"hurt":""}">
           <div class="cmbemoji">${heroAvatar(h.level)}${r.floatHero?`<span class="float dmg">-${r.floatHero}</span>`:""}</div>
@@ -1494,7 +1508,7 @@ function renderBattle(){
         <div class="vs">⚔️</div>
         <div class="combatant enemy ${r.enemyHurt?"hurt":""}">
           <div class="cmbemoji">${en.emoji}${r.floatEn?`<span class="float dmg">-${r.floatEn}</span>`:""}</div>
-          <div class="cmbname">${esc(en.name)}${r.ward?" 🛡️":""}${r.fury?" 🔥":""}</div>
+          <div class="cmbname">${esc(en.name)}${en.affix?` <span class="affix" title="${esc(en.affixName)}: ${esc((AFFIXES.find(a=>a.k===en.affix)||{}).desc||"")}">${en.affixIc} ${esc(en.affixName)}</span>`:""}${r.ward?" 🛡️":""}${r.fury?" 🔥":""}</div>
           <div class="hbar"><div class="hbarfill en" style="width:${enPct}%"></div></div>
           <div class="hbarlbl hcenter">${Math.max(0,en.hp)}/${en.maxHp}</div>
         </div>
@@ -1527,8 +1541,10 @@ function rpgAnswer(oi){
   r.picked=oi; r.revealed=true; h.answered++; r.floatEn=null; r.floatHero=null; r.enemyHurt=false; r.heroHurt=false;
   if(oi===q.correct){
     r.combo++; let dmg=st.atk+(r.combo-1)*2; const crit=Math.random()*100<st.crit; if(crit) dmg=Math.round(dmg*1.8); if(r.fury){ dmg*=2; r.fury=false; }
-    const ef=heroEff(h); if(ef.bleed){ r.enemy.hp-=ef.bleed; r.floatEn=dmg+"+"+ef.bleed; } if(ef.comboheal&&r.combo>=3){ h.hp=Math.min(st.maxHp,h.hp+ef.comboheal); }
-    r.enemy.hp-=dmg; r.enemyHurt=true; if(!r.floatEn) r.floatEn=dmg+(crit?" KRYT!":"");
+    if(r.enemy.affix==="armored"){ dmg=Math.max(1,dmg-Math.ceil(dmg*0.3)); }
+    const ef=heroEff(h); if(ef.bleed){ r.enemy.hp-=ef.bleed; } if(ef.comboheal&&r.combo>=3){ h.hp=Math.min(st.maxHp,h.hp+ef.comboheal); }
+    r.enemy.hp-=dmg; r.enemyHurt=true; r.floatEn=dmg+(crit?" KRYT!":"")+(ef.bleed?" +"+ef.bleed:"");
+    if(r.enemy.affix==="thorny"){ const t=Math.max(1,Math.round(r.enemy.atk*0.25)); h.hp-=t; r.floatHero=t; r.heroHurt=true; }
     if((q.streak||0)<1){ q.streak=1; q.seen=(q.seen||0)+1; if(h.level<15){ h.xp+=10; rpgLevelCheck(); } r._learned=(r._learned||0)+1; try{ save(); syncSoon(); }catch(e){} } // XP tylko z nowych pytań
   } else {
     r.combo=0; const ef=heroEff(h);
@@ -1536,6 +1552,7 @@ function rpgAnswer(oi){
     else if(ef.dodge && Math.random()*100<ef.dodge){ r.floatHero="UNIK"; }
     else { let dmg=Math.max(2,r.enemy.atk-st.def); h.hp-=dmg; r.floatHero=dmg; r.heroHurt=true; }
     if(ef.reflect){ r.enemy.hp-=ef.reflect; r.floatEn=ef.reflect; r.enemyHurt=true; }
+    if(r.enemy.affix==="vampiric"){ r.enemy.hp=Math.min(r.enemy.maxHp,r.enemy.hp+Math.round(r.enemy.maxHp*0.08)); }
   }
   saveHero(); renderBattle();
 }
@@ -1807,6 +1824,30 @@ function renderNote(){
 
 function fireIcons(n){ if(n<=0) return "🔥 ×0"; const cap=Math.min(n,6); return "🔥".repeat(cap)+(n>6?" ×"+n:""); }
 
+function renderWeakSpots(entry){
+  const qs=(entry.bank&&entry.bank.questions||[]).filter(x=>!x.skip);
+  const pane=document.getElementById("pane")||content;
+  // grupuj po sekcji
+  const bySec={};
+  qs.forEach(q=>{ const k=q.sec||"—"; (bySec[k]=bySec[k]||{tot:0,mas:0,wrong:0}); bySec[k].tot++; if((q.streak||0)>=1) bySec[k].mas++; bySec[k].wrong+=(q.wrong||0); });
+  const secRows=Object.keys(bySec).map(k=>({k,...bySec[k],pct:Math.round(100*bySec[k].mas/bySec[k].tot)}))
+    .sort((a,b)=>(a.pct-b.pct)||(b.wrong-a.wrong));
+  const weakQ=qs.filter(q=>(q.streak||0)<1||(q.wrong||0)>0).sort((a,b)=>((b.wrong||0)-(a.wrong||0))||((a.streak||0)-(b.streak||0)));
+  pane.innerHTML=`
+    <div class="qsetup" style="text-align:left">
+      <h2 class="qtitle" style="text-align:center">📊 Słabe punkty</h2>
+      <p class="qsub" style="text-align:center">Gdzie tracisz najwięcej — od tego zacznij powtórkę.</p>
+      <div class="sublabel">Sekcje wg opanowania</div>
+      <div class="hlist">${secRows.map(r=>`<div class="hcard"><div class="hbody"><h4>${esc(r.k)}</h4><div class="msbar" style="margin:5px 0 3px"><div class="msfill" style="width:${r.pct}%"></div></div><div class="hmeta">opanowano ${r.mas}/${r.tot} (${r.pct}%)${r.wrong?` · ${r.wrong} błędów`:""}</div></div></div>`).join("")}</div>
+      ${weakQ.length?`<div class="sublabel">Najtrudniejsze pytania (${weakQ.length})</div><div class="hlist">${weakQ.slice(0,12).map(q=>`<div class="hcard"><div class="hbody"><h4 style="font-size:14px">${esc(q.q)}</h4><div class="hmeta">${(q.streak||0)>=1?"✅ opanowane":"❌ jeszcze nie"}${q.wrong?` · ${q.wrong} ${plural(q.wrong,"błąd","błędy","błędów")}`:""} · sekcja: ${esc(q.sec||"—")}</div></div></div>`).join("")}</div>`:`<div class="hempty">Świetnie — brak słabych punktów! Wszystko opanowane.</div>`}
+      <div class="row" style="justify-content:center;margin-top:14px">${weakQ.length?`<button class="btn" id="wkTrain">🎯 Ćwicz słabe punkty (${Math.min(weakQ.length,20)})</button>`:""}<button class="btn ghost" id="wkBack">↩ Wróć</button></div>
+    </div>`;
+  document.getElementById("wkBack").onclick=()=>{ state.view="bank"; renderNote(); };
+  const wt=document.getElementById("wkTrain"); if(wt) wt.onclick=()=>{
+    const deck={items:weakQ.slice(0,20).map(qq=>({qq,note:entry})),title:"Słabe punkty",onBack:()=>renderWeakSpots(entry),resetAll:()=>{}};
+    runMastery(deck);
+  };
+}
 function renderBankPane(){
   const entry=state.notes.find(n=>n.id===state.currentId); const pane=document.getElementById("pane"); if(!entry||!pane) return;
   const b=(entry.bank&&entry.bank.questions&&entry.bank.questions.length)?entry.bank:null;
@@ -1818,7 +1859,7 @@ function renderBankPane(){
       <p class="qsub">${b?`${bs.total} ${plural(bs.total,"pytanie","pytania","pytań")} · opanowano <b>${bs.mastered}</b> (${bs.pct}%)${bs.skipped?` · ${bs.skipped} pominięto`:""}`:"Pytania pokrywające 100% materiału tej notatki (zwykle 40-70)."}</p>
       ${b?`<div class="msbar" style="max-width:340px;margin:0 auto 18px"><div class="msfill" style="width:${bs.pct}%"></div></div>`:""}
       <div class="row" style="justify-content:center">
-        ${b?`<button class="btn" id="msStart">▶ Ćwicz</button><label class="rpgtoggle"><input type="checkbox" id="bankRpg" ${state.rpgMode?"checked":""}> ⚔️ Tryb RPG</label><button class="btn ghost" id="bankReset">↺ Resetuj postęp</button><button class="btn ghost" id="bankRegen">✨ Zbuduj od nowa</button><button class="btn ghost" id="bankDel" style="color:var(--bad)">🗑 Usuń bank</button>`:`<button class="btn" id="bankGen">✨ Zbuduj bank pytań</button>`}
+        ${b?`<button class="btn" id="msStart">▶ Ćwicz</button><label class="rpgtoggle"><input type="checkbox" id="bankRpg" ${state.rpgMode?"checked":""}> ⚔️ Tryb RPG</label><button class="btn ghost" id="bankWeak">📊 Słabe punkty</button><button class="btn ghost" id="bankReset">↺ Resetuj postęp</button><button class="btn ghost" id="bankRegen">✨ Zbuduj od nowa</button><button class="btn ghost" id="bankDel" style="color:var(--bad)">🗑 Usuń bank</button>`:`<button class="btn" id="bankGen">✨ Zbuduj bank pytań</button>`}
       </div>
       <p class="qopthint" style="max-width:430px;margin:16px auto 0">${b?"Pytanie uznajemy za opanowane po 1 poprawnej odpowiedzi, a błędne wracają w kolejnych rundach. Pytania zbędne możesz trwale pominąć przyciskiem podczas nauki. Budowa od nowa zastąpi bank wraz z postępem.":"Aplikacja przejdzie notatkę sekcja po sekcji i ułoży pytania sprawdzające każdy fakt — tak, by dało się opanować 100% materiału."}</p>
       ${!aiAvailable()?`<div class="banner warn" style="margin-top:14px;text-align:left">⚠️ Aby budować bank, wpisz klucz API w <b>⚙ Ustawienia AI</b>.</div>`:""}
@@ -1826,6 +1867,7 @@ function renderBankPane(){
   const bg=document.getElementById("bankGen"); if(bg) bg.onclick=()=>generateBank(entry);
   const brp=document.getElementById("bankRpg"); if(brp) brp.onchange=e=>{ state.rpgMode=e.target.checked; };
   const msb=document.getElementById("msStart"); if(msb) msb.onclick=()=>{ if(state.rpgMode) startAdventure(rpgPoolFromNotes([entry.id])); else startMastery(entry); };
+  const bwk=document.getElementById("bankWeak"); if(bwk) bwk.onclick=()=>renderWeakSpots(entry);
   const br=document.getElementById("bankReset"); if(br) br.onclick=()=>{ if(confirm("Wyzerować postęp banku pytań?")){ entry.bank.questions.forEach(x=>{x.streak=0;x.wrong=0;x.seen=0;}); entry.updated=Date.now(); save(); syncSoon(); renderBankPane(); } };
   const brg=document.getElementById("bankRegen"); if(brg) brg.onclick=()=>{ if(confirm("Zbudować bank od nowa? Obecne pytania i postęp zostaną zastąpione.")) generateBank(entry); };
   const bdl=document.getElementById("bankDel"); if(bdl) bdl.onclick=()=>{ if(confirm("Usunąć bank pytań tej notatki? (notatka zostanie)")){ entry.bank=null; entry.updated=Date.now(); save(); syncSoon(); renderBankPane(); } };
