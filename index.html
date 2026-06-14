@@ -289,13 +289,13 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .enemy{text-align:center;margin:4px 0 10px;position:relative}
 .enname{font-weight:700;font-size:16px;margin-bottom:4px}
 .enemoji{font-size:52px;line-height:1;transition:transform .15s;display:inline-block;position:relative}
-.arena{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin:6px 0 12px}
+.arena{display:grid;grid-template-columns:1fr auto 1fr;align-items:start;gap:8px;margin:2px 0 8px}
 .combatant{text-align:center;position:relative}
-.cmbemoji{font-size:clamp(40px,13vw,64px);line-height:1;display:inline-block;position:relative;transition:transform .15s}
+.cmbemoji{font-size:clamp(38px,11vw,56px);line-height:1;display:inline-block;position:relative;transition:transform .15s}
 .combatant.hurt .cmbemoji{animation:shake .3s}
 .combatant.enemy .cmbemoji{transform:scaleX(-1)}
-.cmbname{font-size:12.5px;font-weight:700;margin:4px 0 5px;min-height:30px;display:flex;align-items:center;justify-content:center}
-.vs{font-size:18px;opacity:.5;align-self:center;padding-bottom:24px}
+.cmbname{font-size:12px;font-weight:700;margin:2px 0 4px;min-height:0;line-height:1.25}
+.vs{font-size:16px;opacity:.45;align-self:center;padding-top:18px}
 .arena .hbar{height:12px}
 .enemy.hurt .enemoji{animation:shake .3s}
 .hero.hurt{animation:shake .3s}
@@ -328,12 +328,18 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .invrow,.invtile{border-width:2px!important}
 .rartile{border:2px solid #ccc;border-radius:14px;padding:10px 12px;background:#fff;display:flex;align-items:center;gap:10px}
 .rarlabel{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.glow-zwyczajny{box-shadow:0 0 10px -1px rgba(74,158,94,.55)!important}
+.glow-rzadki{box-shadow:0 0 13px -1px rgba(63,127,208,.6)!important}
+.glow-epicki{box-shadow:0 0 16px 0 rgba(154,92,208,.65)!important}
+.glow-legendarny{box-shadow:0 0 20px 1px rgba(224,138,46,.7)!important}
+.glow-unikat{box-shadow:0 0 24px 2px rgba(216,58,82,.75)!important;animation:unipulse 1.8s ease-in-out infinite}
+@keyframes unipulse{0%,100%{box-shadow:0 0 18px 0 rgba(216,58,82,.55)}50%{box-shadow:0 0 30px 4px rgba(216,58,82,.85)}}
 .rpgtoggle{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;color:var(--accent);border:1px solid var(--accent-line);border-radius:11px;padding:9px 13px;cursor:pointer;background:#fff}
 .rpgtoggle input{width:16px;height:16px;accent-color:var(--accent)}
 .slots{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:8px}
-.slot{border:3px solid var(--border);border-radius:14px;padding:10px;text-align:center;background:#fff;min-height:84px;display:flex;flex-direction:column;justify-content:center;position:relative}
+.slot{border:4px solid var(--border);border-radius:14px;padding:9px;text-align:center;background:#fff;min-height:78px;display:flex;flex-direction:column;justify-content:center;position:relative}
 .slot.filled{background:linear-gradient(135deg,rgba(255,255,255,.9),rgba(255,255,255,.7))}
-.slotic{font-size:26px;line-height:1}
+.slotic{font-size:20px;line-height:1}
 .slotnm{font-weight:700;font-size:13px;margin-top:3px}
 .slotst{font-size:11px;color:var(--muted);margin-top:2px}
 .slotempty{color:var(--muted);font-size:13px;font-weight:600;opacity:.7}
@@ -343,7 +349,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .questgrid{display:grid;grid-template-columns:1fr;gap:10px;max-width:420px;margin:14px auto}
 .questcard{border:1px solid var(--accent-line);background:linear-gradient(135deg,rgba(255,255,255,.8),rgba(255,255,255,.55));border-radius:14px;padding:14px;cursor:pointer;text-align:center;transition:.15s}
 .questcard:hover{border-color:var(--accent);background:var(--accent-soft);transform:translateY(-2px)}
-.questic{font-size:34px}
+.questic{font-size:26px}
 .questnm{font-weight:700;margin-top:4px}
 .questds{font-size:13px;color:var(--muted);margin-top:2px}
 @media(min-width:560px){.questgrid{grid-template-columns:1fr 1fr 1fr}}
@@ -1221,33 +1227,77 @@ const ITEM_BASES=[
   {ic:"🦷",nm:"Wilczy kieł",type:"talisman",base:0},
   {ic:"🪶",nm:"Pióropusz",type:"talisman",base:0}
 ];
+const TMAP={w:"weapon",a:"armor",t:"talisman"};
 function genItem(lvl){
-  const base=ITEM_BASES[Math.floor(Math.random()*ITEM_BASES.length)];
-  const rar=rollRarity(lvl);
-  const it={id:uid(),ic:base.ic,nm:base.nm,type:base.type,rar:rar.key,col:rar.col,atk:0,def:0,hp:0,crit:0,sell:Math.round(rar.sell*(1+lvl*0.05))};
-  const s=Math.max(1,Math.round(base.base*rar.mult)) ;
-  if(base.type==="weapon") it.atk=s;
-  else if(base.type==="armor") it.def=s;
-  else { // talizman: losowo hp / kryt / mieszanka
-    const k=Math.random(); if(k<0.5) it.hp=Math.round(8*rar.mult); else if(k<0.8){ it.crit=Math.round(3*rar.mult); } else { it.atk=Math.round(2*rar.mult); it.crit=Math.round(2*rar.mult); }
-  }
+  lvl=Math.max(1,Math.min(15,lvl||1));
+  const rarIdx=RARITY.indexOf(rollRarity(lvl)); const rar=RARITY[rarIdx];
+  let srcRank=lvl; if(Math.random()<0.35 && lvl>1) srcRank=1+Math.floor(Math.random()*lvl);
+  const base=ITEM_RANKS[srcRank-1][rarIdx]; const type=TMAP[base[2]];
+  const it={id:uid(),ic:base[0],nm:base[1],type:type,rar:rar.key,col:rar.col,atk:0,def:0,hp:0,crit:0,eff:null,sell:Math.round(rar.sell*(1+lvl*0.06))};
+  if(type==="weapon") it.atk=Math.max(1,Math.round((3+srcRank*1.4)*rar.mult*0.55));
+  else if(type==="armor") it.hp=Math.max(3,Math.round((10+srcRank*5)*rar.mult*0.5));
+  else { const k=Math.random(); if(k<0.45) it.hp=Math.round((6+srcRank*2)*rar.mult*0.5); else if(k<0.8) it.crit=Math.max(1,Math.round((2+srcRank*0.3)*rar.mult)); else { it.atk=Math.round((2+srcRank*0.6)*rar.mult*0.5); it.crit=Math.max(1,Math.round(1.5*rar.mult)); } }
+  if(rarIdx>=3){ const eff=["bleed","reflect","comboheal","dodge"][Math.floor(Math.random()*4)]; const m=rar.mult;
+    if(eff==="bleed") it.eff={t:"bleed",v:Math.round(2*m)};
+    else if(eff==="reflect") it.eff={t:"reflect",v:Math.round(2*m)};
+    else if(eff==="comboheal") it.eff={t:"comboheal",v:Math.round(2*m)};
+    else it.eff={t:"dodge",v:Math.min(35,Math.round(5*m))}; }
   return it;
 }
-function itemLabel(it){ const parts=[]; if(it.atk)parts.push("+"+it.atk+" ATK"); if(it.def)parts.push("+"+it.def+" OBR"); if(it.hp)parts.push("+"+it.hp+" HP"); if(it.crit)parts.push("+"+it.crit+"% kryt."); return parts.join(", "); }
+function glowCls(it){ return (it&&it.rar&&it.rar!=="pospolity")?(" glow-"+it.rar):""; }
+function effLabel(e){ if(!e) return ""; const n={bleed:"krwawienie",reflect:"odbicie",comboheal:"lecz. combo",dodge:"unik"}; return n[e.t]+" "+e.v+(e.t==="dodge"?"%":""); }
+function itemLabel(it){ const parts=[]; if(it.atk)parts.push("+"+it.atk+" ATK"); if(it.def)parts.push("+"+it.def+" OBR"); if(it.hp)parts.push("+"+it.hp+" HP"); if(it.crit)parts.push("+"+it.crit+"% kryt."); if(it.eff)parts.push("✦ "+effLabel(it.eff)); return parts.join(", "); }
 function equippedItems(h){ const e=h.equipped||{}; const ids=[e.weapon,e.armor,e.acc1,e.acc2].filter(Boolean); return (h.items||[]).filter(it=>ids.indexOf(it.id)>=0); }
 function autoEquip(h,it){ const e=h.equipped; if(it.type==="weapon"){ if(!e.weapon) e.weapon=it.id; } else if(it.type==="armor"){ if(!e.armor) e.armor=it.id; } else { if(!e.acc1) e.acc1=it.id; else if(!e.acc2) e.acc2=it.id; } }
+function heroEff(h){ const e={bleed:0,reflect:0,comboheal:0,dodge:0}; equippedItems(h).forEach(it=>{ if(it.eff){ if(it.eff.t==="dodge") e.dodge=Math.max(e.dodge,it.eff.v); else e[it.eff.t]+=it.eff.v; } }); return e; }
 function heroStats(h){ const b=baseFor(h.level||1); let maxHp=b.maxHp,atk=b.atk,def=b.def,crit=b.crit; equippedItems(h).forEach(it=>{ maxHp+=it.hp||0; atk+=it.atk||0; def+=it.def||0; crit+=it.crit||0; }); return {maxHp,atk,def,crit}; }
 function slotOf(it){ return it.type==="weapon"?"weapon":it.type==="armor"?"armor":"acc"; }
 function isEquipped(h,id){ const e=h.equipped||{}; return e.weapon===id||e.armor===id||e.acc1===id||e.acc2===id; }
 function equipItem(h,id){ const it=(h.items||[]).find(x=>x.id===id); if(!it) return; const e=h.equipped; if(it.type==="weapon") e.weapon=id; else if(it.type==="armor") e.armor=id; else { if(e.acc1&&e.acc1!==id&&!e.acc2) e.acc2=id; else if(e.acc1===id) {} else e.acc1=id; } const mx=heroStats(h).maxHp; if(h.hp>mx) h.hp=mx; }
 function unequipItem(h,id){ const e=h.equipped; ["weapon","armor","acc1","acc2"].forEach(k=>{ if(e[k]===id) e[k]=null; }); const mx=heroStats(h).maxHp; if(h.hp>mx) h.hp=mx; }
 
+const ENEMY_RANKS=[
+ {e:"🐀",l:["wściekły szczur","kretoszczur","pijany żebrak","chory bezpański pies","oszalały wyrzutek","złodziej resztek","wygłodniały włóczęga","agresywny kruk","zdesperowany zbieg","portowy opryszek"]},
+ {e:"🦇",l:["ścierwojad","dziki pies","agresywny kopacz","strażnik kopalni","obozowy rzezimieszek","jaskiniowy pełzacz","pijany najemnik","oszust z kośćmi","wściekły nietoperz","zawistny zbieracz"]},
+ {e:"🐗",l:["wygłodniały wilk","wściekły dzik","drobny złodziejaszek","chłop-buntownik","wiejski osiłek","przerośnięty wąż","lis kradnący drób","szalony drwal","agresywny byk","wędrowny złodziej"]},
+ {e:"🗝️",l:["kłusownik","włóczęga","dezerter","zawistny służący","pijany zbrojny","miejski opryszek","pies stróżujący","karczemny zabijaka","fałszerz monet","nocny rabuś"]},
+ {e:"🏹",l:["przydrożny bandyta","rzezimieszek","wrogi zwiadowca","wyjęty spod prawa","dziki warg","wrogi goniec","oprych z zaułka","najęty zbir","leśny rabuś","szpieg w przebraniu"]},
+ {e:"🗡️",l:["przemytnik","agresywny buntownik","najemnik-nowicjusz","dezerter z armii","narwany szermierz","cmentarna hiena","uzbrojony rabuś","członek gildii złodziei","zbiegły więzień","sekciarz"]},
+ {e:"⚔️",l:["uciekinier z lochów","płatny morderca","herszt bandytów","skorumpowany gwardzista","przywódca zamieszek","uzbrojony szmugler","doświadczony najemnik","wrogi dywersant","miejski asasyn","mistrz złodziei"]},
+ {e:"🪓",l:["obcy piechur","opancerzony maruder","łowca nagród","elitarny bandyta","oficer-dezerter","wrogi kusznik","mistrz gołych pięści","herszt kłusowników","fanatyk religijny","wrogi tarczownik"]},
+ {e:"🛡️",l:["skrytobójca","elitarny najemnik","zbuntowany rycerz","gwardzista wrogiego rodu","przywódca kultu","najemny morderca","wrogi oficer","mistrz miecza","berserk z północy","zdradziecki doradca"]},
+ {e:"🐎",l:["wrogi konny","czempion areny","zakuty w stal dezerter","czarny rycerz","dowódca najemników","opancerzony gwardzista","obcy szlachcic","zbuntowany wasal","łowca rycerzy","rywal z turnieju"]},
+ {e:"🏰",l:["dowódca oblężenia","wrogi kapitan","najęty prowokator","mistrz skrytobójców","herszt wielkiej bandy","przywódca buntu","weteran-zwiadowca","zdradziecki porucznik","czempion wrogiego klanu","dowódca saperów"]},
+ {e:"👑",l:["zbiegły władyka","fanatyczny inkwizytor","zbuntowany dowódca","rywalizujący baron","mistrz szpiegów","wrogi dowódca kawalerii","uzurpator do ziemi","elitarny gwardzista","przywódca powstania","dyplomata-skrytobójca"]},
+ {e:"🦅",l:["szpiegmaster wroga","obcy namiestnik","zdradziecki rycerz","dowódca straży przedniej","przywódca kultu","skorumpowany generał","wielki mistrz zakonny","baron-rebeliant","wysłannik imperium","wróg z dawnych lat"]},
+ {e:"⚜️",l:["dowódca obcej armii","mistrz wrogiego zakonu","zbuntowany magnat","królewski intrygant","obcy książę","generał piechoty","dowódca inkwizycji","herszt barbarzyńców","przywódca rewolucji","brat-uzurpator"]},
+ {e:"🐉",l:["wrogi monarcha","uzurpator do tronu","przywódca rebelii","najwyższy kapłan","król barbarzyńców","cesarz imperium","legendarny wódz","zdradziecki książę","władca sojuszu","bestia oblężnicza"]}
+];
+// itemy per ranga: 6 rzadkości [pospolity,zwyczajny,rzadki,epicki,legendarny,unikat], typ: w=broń,a=pancerz,t=akcesorium
+const ITEM_RANKS=[
+ [["👕","Łachmany Wyrzutka","a"],["🌿","Sękaty Kij","w"],["🍀","Szczęśliwy Kamień","t"],["🔪","Zardzewiały Tasak","w"],["✨","Resztki Perfekcjonizmu","t"],["🐀","Płaszcz Szczurzego Króla","a"]],
+ [["⛏️","Stępiony Kilof","w"],["👖","Spodnie Kopacza","a"],["💎","Magiczna Ruda","t"],["🦺","Skórzany Fartuch","a"],["🔨","Wzmocniony Młot","w"],["🪙","Złoty Samorodek","t"]],
+ [["🌾","Garść Ziarna","t"],["🔱","Stalowe Widły","w"],["🧥","Gruby Kaftan","a"],["🎶","Drewniany Metronom","t"],["🥾","Przyczepne Buty","a"],["⚰️","Kosa Zamaszysta","w"]],
+ [["🦮","Kamizela z Psiej Skóry","a"],["🔪","Nóż do Skórowania","w"],["🪨","Osełka Służącego","t"],["🗡️","Podkradziony Miecz","w"],["💍","Sygnet Kowala","t"],["🧷","Ćwiekowana Przeszywalnica","a"]],
+ [["✉️","Zapieczętowany List","t"],["👟","Buty Kuriera","a"],["🪃","Proca Myśliwska","w"],["🥷","Kaptur Złodzieja","a"],["🗡️","Sztylet z Zaułka","w"],["🗺️","Mapa Odysei","t"]],
+ [["🛡️","Drewniana Tarcza","a"],["🗡️","Zardzewiały Miecz","w"],["🧥","Przeszywalnica","a"],["🧴","Bukłak z Wodą","t"],["🔱","Włócznia Koszarowa","w"],["⛑️","Lekki Hełm","a"]],
+ [["🏏","Pałka Strażnicza","w"],["🧤","Skórzane Karwasze","a"],["📯","Gwizdek Alarmowy","t"],["⚔️","Miecz Jednoręczny","w"],["🛡️","Napierśnik Straży","a"],["🗝️","Klucz do Cel","t"]],
+ [["🚬","Fajka Weterana","t"],["🔨","Bojowy Buzdygan","w"],["⛑️","Stalowy Hełm","a"],["🏹","Ciężka Kusza","w"],["🐊","Łuskowa Zbroja","a"],["🎖️","Order Za Zasługi","t"]],
+ [["🧣","Płaszcz Rodowy","a"],["🪓","Halabarda Gwardii","w"],["🧤","Stalowe Rękawice","a"],["⚔️","Miecz Dwuręczny","w"],["📿","Medalion Ochronny","t"],["🛡️","Zbroja Płytowa","a"]],
+ [["🥁","Złocone Ostrogi","t"],["🗡️","Miecz Rycerski","w"],["🪖","Hełm z Przyłbicą","a"],["🦁","Herb Rodowy","t"],["🐎","Kopia Turniejowa","w"],["✨","Zbroja z Gotharu","a"]],
+ [["🗡️","Krótki Miecz Oficerski","w"],["🗝️","Klucz do Zbrojowni","t"],["🧥","Kolczuga Oficerska","a"],["🔱","Buława Marszałkowska","w"],["🛡️","Tarcza Forteczna","a"],["🔭","Luneta Zwiadowcza","t"]],
+ [["💍","Sygnet Barona","t"],["🧥","Bogaty Dublet","a"],["🤺","Rapier Pojedynkowy","w"],["🪶","Pióro i Atrament","t"],["🐉","Zbroja Lennika","a"],["🗡️","Miecz Egzekutora","w"]],
+ [["🦊","Płaszcz z Gronostajów","a"],["🍷","Srebrny Kielich","t"],["🗡️","Złocony Miecz","w"],["🏆","Pancerz Turniejowy","a"],["☠️","Trucizna Hrabiego","t"],["🗡️","Ostrze Zdrady","w"]],
+ [["👑","Książęcy Diadem","t"],["🪖","Zbroja Gwardii","a"],["🔱","Berło Bojowe","w"],["🛡️","Tarcza Książęca","a"],["☄️","Miecz Meteorytowy","w"],["🩸","Pakt Krwi","t"]],
+ [["🧥","Królewski Płaszcz","a"],["🍎","Złote Jabłko","t"],["🔱","Berło Władzy","w"],["🥇","Złota Zbroja Płytowa","a"],["👁️","Korona Wszechwiedzy","t"],["⚜️","Excalibur Królestwa","w"]]
+];
+
 const SLAV=[["Polewik","🌾"],["Skrzat","🧌"],["Utopiec","🧜"],["Południca","☀️"],["Wodnik","💧"],["Mamuna","👶"],["Licho","🃏"],["Strzyga","🧛"],["Wilkołak","🐺"],["Borowy","🐗"],["Nocnica","🦉"],["Mara","👻"],["Bies","😈"],["Czart","🐐"],["Leszy","🌲"],["Żmij","🐉"],["Płanetnik","🌩️"],["Wij","🪱"],["Babojga","🧙‍♀️"],["Kościej","☠️"]];
 function makeEnemy(idx,lvl){
-  const t=SLAV[Math.min(idx,SLAV.length-1)]; const loop=Math.floor(idx/SLAV.length);
-  const hp=Math.round((30+idx*15+lvl*5)*(1+loop*0.7));
-  const atk=Math.round((5+idx*2+lvl)*(1+loop*0.45));
-  return {name:t[0]+(loop?" "+("II III IV V".split(" ")[Math.min(loop-1,3)]):""),emoji:t[1],maxHp:hp,hp:hp,atk:atk};
+  const rk=ENEMY_RANKS[Math.min((lvl||1)-1,14)]; const nm=rk.l[idx%rk.l.length]; const loop=Math.floor(idx/rk.l.length);
+  const hp=Math.round((30+idx*15+lvl*6)*(1+loop*0.6));
+  const atk=Math.round((5+idx*2+lvl)*(1+loop*0.4));
+  return {name:nm.charAt(0).toUpperCase()+nm.slice(1)+(loop?" +"+loop:""),emoji:rk.e,maxHp:hp,hp:hp,atk:atk};
 }
 function rpgShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function rpgPoolAll(){ const out=[]; state.notes.forEach(n=>{ if(n.bank&&n.bank.questions) n.bank.questions.forEach(q=>{ if(!q.skip&&q.options&&q.options.length===4) out.push(q); }); }); return out; }
@@ -1316,7 +1366,7 @@ function renderTree(){
 function renderInventory(){
   const h=state.hero; const e=h.equipped||{};
   const findIt=id=>id?(h.items||[]).find(x=>x.id===id):null;
-  const slotHtml=(label,id)=>{ const it=findIt(id); return `<div class="slot ${it?"filled":""}" ${it?`style="border-color:${it.col}"`:""}>${it?`<div class="slotic">${it.ic}</div><div class="slotnm" style="color:${it.col}">${esc(it.nm)}</div><div class="slotst">${itemLabel(it)}</div><button class="slotun" data-uneq="${it.id}">zdejmij</button>`:`<div class="slotempty">${label}</div>`}</div>`; };
+  const slotHtml=(label,id)=>{ const it=findIt(id); return `<div class="slot ${it?"filled"+glowCls(it):""}" ${it?`style="border-color:${it.col}"`:""}>${it?`<div class="slotic">${it.ic}</div><div class="slotnm" style="color:${it.col}">${esc(it.nm)}</div><div class="slotst">${itemLabel(it)}</div><button class="slotun" data-uneq="${it.id}">zdejmij</button>`:`<div class="slotempty">${label}</div>`}</div>`; };
   const cap=30; const backpack=(h.items||[]).filter(it=>!isEquipped(h,it.id));
   content.innerHTML=`
     <button class="backbtn" id="invBack">‹ Wstecz</button>
@@ -1325,7 +1375,7 @@ function renderInventory(){
     <div class="sublabel">Założone</div>
     <div class="slots">${slotHtml("⚔️ Broń",e.weapon)}${slotHtml("🛡️ Pancerz",e.armor)}${slotHtml("💍 Akcesorium I",e.acc1)}${slotHtml("🪬 Akcesorium II",e.acc2)}</div>
     <div class="sublabel">Plecak</div>
-    <div class="hlist">${backpack.length?backpack.map(it=>`<div class="hcard" style="border:3px solid ${it.col}"><div class="hbody"><h4>${it.ic} ${esc(it.nm)} <span class="rarlabel" style="color:${it.col}">${it.rar}</span></h4><div class="hmeta">${itemLabel(it)} · 🪙 ${it.sell}</div></div><div style="display:flex;flex-direction:column;gap:5px"><button class="btn ghost" data-eq="${it.id}" style="font-size:12px;padding:5px 10px">Załóż</button><button class="btn ghost" data-sell="${it.id}" style="color:var(--bad);font-size:12px;padding:5px 10px">Sprzedaj</button></div></div>`).join(""):`<div class="hempty">Plecak pusty. Zdobywaj łupy w wyprawach.</div>`}</div>
+    <div class="hlist">${backpack.length?backpack.map(it=>`<div class="hcard${glowCls(it)}" style="border:4px solid ${it.col}"><div class="hbody"><h4>${it.ic} ${esc(it.nm)} <span class="rarlabel" style="color:${it.col}">${it.rar}</span></h4><div class="hmeta">${itemLabel(it)} · 🪙 ${it.sell}</div></div><div style="display:flex;flex-direction:column;gap:5px"><button class="btn ghost" data-eq="${it.id}" style="font-size:12px;padding:5px 10px">Załóż</button><button class="btn ghost" data-sell="${it.id}" style="color:var(--bad);font-size:12px;padding:5px 10px">Sprzedaj</button></div></div>`).join(""):`<div class="hempty">Plecak pusty. Zdobywaj łupy w wyprawach.</div>`}</div>
     <div class="haddwrap"></div></div>`;
   document.getElementById("invBack").onclick=()=>renderRpgHome();
   content.querySelectorAll("[data-eq]").forEach(b=>b.onclick=()=>{ equipItem(h,b.getAttribute("data-eq")); saveHero(); renderInventory(); });
@@ -1403,12 +1453,15 @@ function rpgAnswer(oi){
   r.picked=oi; r.revealed=true; h.answered++; r.floatEn=null; r.floatHero=null; r.enemyHurt=false; r.heroHurt=false;
   if(oi===q.correct){
     r.combo++; let dmg=st.atk+(r.combo-1)*2; const crit=Math.random()*100<st.crit; if(crit) dmg=Math.round(dmg*1.8); if(r.fury){ dmg*=2; r.fury=false; }
-    r.enemy.hp-=dmg; r.floatEn=dmg+(crit?" KRYT!":""); r.enemyHurt=true;
+    const ef=heroEff(h); if(ef.bleed){ r.enemy.hp-=ef.bleed; r.floatEn=dmg+"+"+ef.bleed; } if(ef.comboheal&&r.combo>=3){ h.hp=Math.min(st.maxHp,h.hp+ef.comboheal); }
+    r.enemy.hp-=dmg; r.enemyHurt=true; if(!r.floatEn) r.floatEn=dmg+(crit?" KRYT!":"");
     if((q.streak||0)<1){ q.streak=1; q.seen=(q.seen||0)+1; if(h.level<15){ h.xp+=10; rpgLevelCheck(); } r._learned=(r._learned||0)+1; try{ save(); syncSoon(); }catch(e){} } // XP tylko z nowych pytań
   } else {
-    r.combo=0;
-    if(r.ward){ r.ward=false; r.floatHero=0; }
+    r.combo=0; const ef=heroEff(h);
+    if(r.ward){ r.ward=false; r.floatHero="0"; }
+    else if(ef.dodge && Math.random()*100<ef.dodge){ r.floatHero="UNIK"; }
     else { let dmg=Math.max(2,r.enemy.atk-st.def); h.hp-=dmg; r.floatHero=dmg; r.heroHurt=true; }
+    if(ef.reflect){ r.enemy.hp-=ef.reflect; r.floatEn=ef.reflect; r.enemyHurt=true; }
   }
   saveHero(); renderBattle();
 }
@@ -1432,7 +1485,7 @@ function renderQuest(leveled,coinGain){
       <div class="qbadge big">📜</div>
       <h2 class="qtitle">Łup z wyprawy!</h2>
       <p class="qsub">Zdobyłeś 🪙 ${coinGain} groszy.${leveled?` <b>Awans na: ${esc(rankName(h))}!</b>`:""} Wybierz jeden przedmiot:</p>
-      <div class="questgrid">${choices.map((it,i)=>`<button class="questcard" data-qi="${i}" style="border-color:${it.col};border-width:3px"><div class="questic">${it.ic}</div><div class="questnm" style="color:${it.col}">${esc(it.nm)}</div><div class="questrar" style="color:${it.col}">${it.rar}</div><div class="questds">${itemLabel(it)}</div></button>`).join("")}</div>
+      <div class="questgrid">${choices.map((it,i)=>`<button class="questcard${glowCls(it)}" data-qi="${i}" style="border-color:${it.col};border-width:4px"><div class="questic">${it.ic}</div><div class="questnm" style="color:${it.col}">${esc(it.nm)}</div><div class="questrar" style="color:${it.col}">${it.rar}</div><div class="questds">${itemLabel(it)}</div></button>`).join("")}</div>
       <div class="muted small" style="margin-top:10px">Niewybrane przedmioty przepadają.</div>
     </div>`;
   content.querySelectorAll("[data-qi]").forEach(b=>b.onclick=()=>{
