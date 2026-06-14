@@ -289,6 +289,14 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .enemy{text-align:center;margin:4px 0 10px;position:relative}
 .enname{font-weight:700;font-size:16px;margin-bottom:4px}
 .enemoji{font-size:52px;line-height:1;transition:transform .15s;display:inline-block;position:relative}
+.arena{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin:6px 0 12px}
+.combatant{text-align:center;position:relative}
+.cmbemoji{font-size:clamp(40px,13vw,64px);line-height:1;display:inline-block;position:relative;transition:transform .15s}
+.combatant.hurt .cmbemoji{animation:shake .3s}
+.combatant.enemy .cmbemoji{transform:scaleX(-1)}
+.cmbname{font-size:12.5px;font-weight:700;margin:4px 0 5px;min-height:30px;display:flex;align-items:center;justify-content:center}
+.vs{font-size:18px;opacity:.5;align-self:center;padding-bottom:24px}
+.arena .hbar{height:12px}
 .enemy.hurt .enemoji{animation:shake .3s}
 .hero.hurt{animation:shake .3s}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
@@ -303,7 +311,7 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .consbtn:disabled{opacity:.4;cursor:default}
 .consbtn:not(:disabled):hover{background:var(--accent-soft)}
 .questrar{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:1px}
-.questcard{border-width:2px}
+.questcard{border-width:3px}
 .treelist{display:flex;flex-direction:column;gap:8px}
 .treerow{display:flex;gap:12px;align-items:center;border:1px solid var(--border);border-radius:14px;padding:11px 13px;background:#fff}
 .treerow.done{opacity:.62}
@@ -322,6 +330,15 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .rarlabel{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
 .rpgtoggle{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;color:var(--accent);border:1px solid var(--accent-line);border-radius:11px;padding:9px 13px;cursor:pointer;background:#fff}
 .rpgtoggle input{width:16px;height:16px;accent-color:var(--accent)}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:8px}
+.slot{border:3px solid var(--border);border-radius:14px;padding:10px;text-align:center;background:#fff;min-height:84px;display:flex;flex-direction:column;justify-content:center;position:relative}
+.slot.filled{background:linear-gradient(135deg,rgba(255,255,255,.9),rgba(255,255,255,.7))}
+.slotic{font-size:26px;line-height:1}
+.slotnm{font-weight:700;font-size:13px;margin-top:3px}
+.slotst{font-size:11px;color:var(--muted);margin-top:2px}
+.slotempty{color:var(--muted);font-size:13px;font-weight:600;opacity:.7}
+.slotun{margin-top:6px;border:none;background:var(--bad-soft);color:var(--bad);font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;cursor:pointer}
+@media(min-width:560px){.slots{grid-template-columns:1fr 1fr 1fr 1fr}}
 .herorow{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:13.5px;font-weight:600}
 .questgrid{display:grid;grid-template-columns:1fr;gap:10px;max-width:420px;margin:14px auto}
 .questcard{border:1px solid var(--accent-line);background:linear-gradient(135deg,rgba(255,255,255,.8),rgba(255,255,255,.55));border-radius:14px;padding:14px;cursor:pointer;text-align:center;transition:.15s}
@@ -497,8 +514,8 @@ function markDeleted(id){ state.deleted=state.deleted||{}; state.deleted[id]=Dat
 function saveSekcje(){ state.sekUpdated=Date.now(); try{ localStorage.setItem(SEK_KEY,JSON.stringify({sekcje:state.sekcje,updated:state.sekUpdated})); }catch(e){} if(loggedIn()) syncSoon(); }
 function sekStats(sk){ let total=0,mastered=0; (sk.noteIds||[]).forEach(id=>{ const n=state.notes.find(x=>x.id===id); if(n&&n.bank&&n.bank.questions){ const qs=n.bank.questions.filter(q=>!q.skip); total+=qs.length; mastered+=qs.filter(q=>q.streak>=1).length; } }); return {total,mastered,pct:total?Math.round(100*mastered/total):0}; }
 const HERO_KEY="notatkiai.hero.v1";
-function defaultHero(){ return {name:"Bezimienny",level:1,xp:0,hp:null,coins:0,items:[],cons:{potion:0,fury:0,ward:0},defeated:0,answered:0,questAt:8,questStep:3,enemyIdx:0}; }
-function loadHero(){ try{ state.hero=Object.assign(defaultHero(),JSON.parse(localStorage.getItem(HERO_KEY))||{}); const h=state.hero; if(!h.cons) h.cons={potion:0,fury:0,ward:0}; if(!h.items) h.items=[]; if(!h.level||h.level<1) h.level=1; if(h.level>15) h.level=15; if(typeof h.xp!=="number") h.xp=0; if(h.hp==null) h.hp=heroStats(h).maxHp; }catch(e){ state.hero=defaultHero(); state.hero.hp=heroStats(state.hero).maxHp; } }
+function defaultHero(){ return {name:"Bezimienny",level:1,xp:0,hp:null,coins:0,items:[],equipped:{weapon:null,armor:null,acc1:null,acc2:null},cons:{potion:0,fury:0,ward:0},defeated:0,answered:0,questAt:8,questStep:3,enemyIdx:0}; }
+function loadHero(){ try{ state.hero=Object.assign(defaultHero(),JSON.parse(localStorage.getItem(HERO_KEY))||{}); const h=state.hero; if(!h.cons) h.cons={potion:0,fury:0,ward:0}; if(!h.items) h.items=[]; if(!h.level||h.level<1) h.level=1; if(h.level>15) h.level=15; if(typeof h.xp!=="number") h.xp=0; if(!h.equipped){ h.equipped={weapon:null,armor:null,acc1:null,acc2:null}; (h.items||[]).forEach(it=>autoEquip(h,it)); } if(h.hp==null) h.hp=heroStats(h).maxHp; }catch(e){ state.hero=defaultHero(); state.hero.hp=heroStats(state.hero).maxHp; } }
 function saveHero(){ try{ localStorage.setItem(HERO_KEY,JSON.stringify(state.hero)); }catch(e){} }
 function heroAvatar(l){ return RANKS15[Math.min((l||1)-1,14)].a; }
 
@@ -1217,7 +1234,13 @@ function genItem(lvl){
   return it;
 }
 function itemLabel(it){ const parts=[]; if(it.atk)parts.push("+"+it.atk+" ATK"); if(it.def)parts.push("+"+it.def+" OBR"); if(it.hp)parts.push("+"+it.hp+" HP"); if(it.crit)parts.push("+"+it.crit+"% kryt."); return parts.join(", "); }
-function heroStats(h){ const b=baseFor(h.level||1); let maxHp=b.maxHp,atk=b.atk,def=b.def,crit=b.crit; (h.items||[]).forEach(it=>{ maxHp+=it.hp||0; atk+=it.atk||0; def+=it.def||0; crit+=it.crit||0; }); return {maxHp,atk,def,crit}; }
+function equippedItems(h){ const e=h.equipped||{}; const ids=[e.weapon,e.armor,e.acc1,e.acc2].filter(Boolean); return (h.items||[]).filter(it=>ids.indexOf(it.id)>=0); }
+function autoEquip(h,it){ const e=h.equipped; if(it.type==="weapon"){ if(!e.weapon) e.weapon=it.id; } else if(it.type==="armor"){ if(!e.armor) e.armor=it.id; } else { if(!e.acc1) e.acc1=it.id; else if(!e.acc2) e.acc2=it.id; } }
+function heroStats(h){ const b=baseFor(h.level||1); let maxHp=b.maxHp,atk=b.atk,def=b.def,crit=b.crit; equippedItems(h).forEach(it=>{ maxHp+=it.hp||0; atk+=it.atk||0; def+=it.def||0; crit+=it.crit||0; }); return {maxHp,atk,def,crit}; }
+function slotOf(it){ return it.type==="weapon"?"weapon":it.type==="armor"?"armor":"acc"; }
+function isEquipped(h,id){ const e=h.equipped||{}; return e.weapon===id||e.armor===id||e.acc1===id||e.acc2===id; }
+function equipItem(h,id){ const it=(h.items||[]).find(x=>x.id===id); if(!it) return; const e=h.equipped; if(it.type==="weapon") e.weapon=id; else if(it.type==="armor") e.armor=id; else { if(e.acc1&&e.acc1!==id&&!e.acc2) e.acc2=id; else if(e.acc1===id) {} else e.acc1=id; } const mx=heroStats(h).maxHp; if(h.hp>mx) h.hp=mx; }
+function unequipItem(h,id){ const e=h.equipped; ["weapon","armor","acc1","acc2"].forEach(k=>{ if(e[k]===id) e[k]=null; }); const mx=heroStats(h).maxHp; if(h.hp>mx) h.hp=mx; }
 
 const SLAV=[["Polewik","🌾"],["Skrzat","🧌"],["Utopiec","🧜"],["Południca","☀️"],["Wodnik","💧"],["Mamuna","👶"],["Licho","🃏"],["Strzyga","🧛"],["Wilkołak","🐺"],["Borowy","🐗"],["Nocnica","🦉"],["Mara","👻"],["Bies","😈"],["Czart","🐐"],["Leszy","🌲"],["Żmij","🐉"],["Płanetnik","🌩️"],["Wij","🪱"],["Babojga","🧙‍♀️"],["Kościej","☠️"]];
 function makeEnemy(idx,lvl){
@@ -1291,15 +1314,23 @@ function renderTree(){
   document.getElementById("treeBack").onclick=()=>renderRpgHome();
 }
 function renderInventory(){
-  const h=state.hero;
+  const h=state.hero; const e=h.equipped||{};
+  const findIt=id=>id?(h.items||[]).find(x=>x.id===id):null;
+  const slotHtml=(label,id)=>{ const it=findIt(id); return `<div class="slot ${it?"filled":""}" ${it?`style="border-color:${it.col}"`:""}>${it?`<div class="slotic">${it.ic}</div><div class="slotnm" style="color:${it.col}">${esc(it.nm)}</div><div class="slotst">${itemLabel(it)}</div><button class="slotun" data-uneq="${it.id}">zdejmij</button>`:`<div class="slotempty">${label}</div>`}</div>`; };
+  const cap=30; const backpack=(h.items||[]).filter(it=>!isEquipped(h,it.id));
   content.innerHTML=`
     <button class="backbtn" id="invBack">‹ Wstecz</button>
     <div class="home"><h1 class="hello" style="font-size:26px">🎒 Ekwipunek</h1>
-    <div class="hellosub">🪙 ${h.coins} groszy · sprzedaj zbędne przedmioty kupcowi.</div>
-    <div class="hlist">${(h.items||[]).length?h.items.map(it=>`<div class="hcard" style="border:2px solid ${it.col}"><div class="hbody"><h4>${it.ic} ${esc(it.nm)} <span class="rarlabel" style="color:${it.col}">${it.rar}</span></h4><div class="hmeta">${itemLabel(it)} · wartość 🪙 ${it.sell}</div></div><button class="btn ghost" data-sell="${it.id}" style="color:var(--bad);font-size:12px;padding:6px 10px">Sprzedaj</button></div>`).join(""):`<div class="hempty">Pusty ekwipunek. Zdobywaj przedmioty w wyprawach.</div>`}</div>
+    <div class="hellosub">🪙 ${h.coins} groszy · założone bonusy liczą się do statystyk. Plecak: ${backpack.length}/${cap}.</div>
+    <div class="sublabel">Założone</div>
+    <div class="slots">${slotHtml("⚔️ Broń",e.weapon)}${slotHtml("🛡️ Pancerz",e.armor)}${slotHtml("💍 Akcesorium I",e.acc1)}${slotHtml("🪬 Akcesorium II",e.acc2)}</div>
+    <div class="sublabel">Plecak</div>
+    <div class="hlist">${backpack.length?backpack.map(it=>`<div class="hcard" style="border:3px solid ${it.col}"><div class="hbody"><h4>${it.ic} ${esc(it.nm)} <span class="rarlabel" style="color:${it.col}">${it.rar}</span></h4><div class="hmeta">${itemLabel(it)} · 🪙 ${it.sell}</div></div><div style="display:flex;flex-direction:column;gap:5px"><button class="btn ghost" data-eq="${it.id}" style="font-size:12px;padding:5px 10px">Załóż</button><button class="btn ghost" data-sell="${it.id}" style="color:var(--bad);font-size:12px;padding:5px 10px">Sprzedaj</button></div></div>`).join(""):`<div class="hempty">Plecak pusty. Zdobywaj łupy w wyprawach.</div>`}</div>
     <div class="haddwrap"></div></div>`;
   document.getElementById("invBack").onclick=()=>renderRpgHome();
-  content.querySelectorAll("[data-sell]").forEach(b=>b.onclick=()=>{ const id=b.getAttribute("data-sell"); const it=h.items.find(x=>x.id===id); if(!it) return; h.coins+=it.sell; h.items=h.items.filter(x=>x.id!==id); if(h.hp>heroStats(h).maxHp) h.hp=heroStats(h).maxHp; saveHero(); renderInventory(); });
+  content.querySelectorAll("[data-eq]").forEach(b=>b.onclick=()=>{ equipItem(h,b.getAttribute("data-eq")); saveHero(); renderInventory(); });
+  content.querySelectorAll("[data-uneq]").forEach(b=>b.onclick=()=>{ unequipItem(h,b.getAttribute("data-uneq")); saveHero(); renderInventory(); });
+  content.querySelectorAll("[data-sell]").forEach(b=>b.onclick=()=>{ const id=b.getAttribute("data-sell"); const it=h.items.find(x=>x.id===id); if(!it) return; unequipItem(h,id); h.coins+=it.sell; h.items=h.items.filter(x=>x.id!==id); saveHero(); renderInventory(); });
 }
 const SHOP=[
   {key:"potion",ic:"🧪",name:"Eliksir życia",desc:"W walce leczy 50% maks. HP",cost:25},
@@ -1331,20 +1362,25 @@ function renderBattle(){
   content.innerHTML=`
     <div class="battle">
       <div class="bbar"><button class="backbtn" id="bExit" style="margin:0">‹ Przerwij</button><span class="bmeta">${esc(rankName(h))} · 🪙 ${h.coins}</span></div>
-      <div class="enemy ${r.enemyHurt?"hurt":""}">
-        <div class="enname">${esc(en.name)}</div>
-        <div class="enemoji">${en.emoji}${r.floatEn?`<span class="float dmg">-${r.floatEn}</span>`:""}</div>
-        <div class="hbar big"><div class="hbarfill en" style="width:${enPct}%"></div></div>
-        <div class="hbarlbl center">${Math.max(0,en.hp)}/${en.maxHp}${r.ward?" · 🛡️ ochrona":""}${r.fury?" · 🔥 furia":""}</div>
+      <div class="arena">
+        <div class="combatant hero ${r.heroHurt?"hurt":""}">
+          <div class="cmbemoji">${heroAvatar(h.level)}${r.floatHero?`<span class="float dmg">-${r.floatHero}</span>`:""}</div>
+          <div class="cmbname">${esc(rankName(h))}${r.combo>1?` 🔥x${r.combo}`:""}</div>
+          <div class="hbar"><div class="hbarfill hp" style="width:${hpPct}%"></div></div>
+          <div class="hbarlbl center">${Math.max(0,h.hp)}/${st.maxHp}</div>
+        </div>
+        <div class="vs">⚔️</div>
+        <div class="combatant enemy ${r.enemyHurt?"hurt":""}">
+          <div class="cmbemoji">${en.emoji}${r.floatEn?`<span class="float dmg">-${r.floatEn}</span>`:""}</div>
+          <div class="cmbname">${esc(en.name)}${r.ward?" 🛡️":""}${r.fury?" 🔥":""}</div>
+          <div class="hbar"><div class="hbarfill en" style="width:${enPct}%"></div></div>
+          <div class="hbarlbl center">${Math.max(0,en.hp)}/${en.maxHp}</div>
+        </div>
       </div>
       <div class="battleq">
         <div class="qt">${esc(q.q)}</div>
         ${q.options.map((o,oi)=>{ let cls="opt"; if(r.revealed){ if(oi===q.correct) cls+=" correct"; else if(oi===r.picked) cls+=" wrong"; } return `<div class="${cls}" data-oi="${oi}"><span class="mk">${r.revealed&&oi===q.correct?"✓":r.revealed&&oi===r.picked?"✗":""}</span><span class="ot">${esc(o)}</span></div>`; }).join("")}
         ${r.revealed&&q.explanation?`<div class="exp">💡 ${esc(q.explanation)}</div>`:""}
-      </div>
-      <div class="hero ${r.heroHurt?"hurt":""}">
-        <div class="herorow"><span class="heroav sm">${heroAvatar(h.level)}</span><span>❤️ ${Math.max(0,h.hp)}/${st.maxHp}${r.combo>1?` · 🔥 x${r.combo}`:""}${r.floatHero?` <span class="float dmg sm">-${r.floatHero}</span>`:""}</span></div>
-        <div class="hbar big"><div class="hbarfill hp" style="width:${hpPct}%"></div></div>
       </div>
       <div class="consrow">${["potion","fury","ward"].map(k=>{ const it=SHOP.find(x=>x.key===k); const cnt=h.cons[k]||0; return `<button class="consbtn" data-use="${k}" ${cnt&&!r.revealed?"":"disabled"} title="${esc(it.desc)}">${it.ic} ${cnt}</button>`; }).join("")}</div>
       ${r.revealed?`<div class="row" style="justify-content:center"><button class="btn" id="bNext">${en.hp<=0?"🏆 Zwycięstwo →":(h.hp<=0?"💀 Dalej":"▶ Dalej")}</button></div>`:`<div class="muted small" style="text-align:center">Trafna odpowiedź rani potwora, błędna rani Ciebie.</div>`}
@@ -1396,11 +1432,11 @@ function renderQuest(leveled,coinGain){
       <div class="qbadge big">📜</div>
       <h2 class="qtitle">Łup z wyprawy!</h2>
       <p class="qsub">Zdobyłeś 🪙 ${coinGain} groszy.${leveled?` <b>Awans na: ${esc(rankName(h))}!</b>`:""} Wybierz jeden przedmiot:</p>
-      <div class="questgrid">${choices.map((it,i)=>`<button class="questcard" data-qi="${i}" style="border-color:${it.col}"><div class="questic">${it.ic}</div><div class="questnm" style="color:${it.col}">${esc(it.nm)}</div><div class="questrar" style="color:${it.col}">${it.rar}</div><div class="questds">${itemLabel(it)}</div></button>`).join("")}</div>
+      <div class="questgrid">${choices.map((it,i)=>`<button class="questcard" data-qi="${i}" style="border-color:${it.col};border-width:3px"><div class="questic">${it.ic}</div><div class="questnm" style="color:${it.col}">${esc(it.nm)}</div><div class="questrar" style="color:${it.col}">${it.rar}</div><div class="questds">${itemLabel(it)}</div></button>`).join("")}</div>
       <div class="muted small" style="margin-top:10px">Niewybrane przedmioty przepadają.</div>
     </div>`;
   content.querySelectorAll("[data-qi]").forEach(b=>b.onclick=()=>{
-    const it=choices[+b.getAttribute("data-qi")]; h.items=h.items||[]; h.items.push(it); saveHero();
+    const it=choices[+b.getAttribute("data-qi")]; h.items=h.items||[]; h.items.push(it); autoEquip(h,it); const mx=heroStats(h).maxHp; if(h.hp>mx)h.hp=mx; saveHero();
     const r=state.rpg; r.enemy=makeEnemy(h.enemyIdx,h.level); r.revealed=false; r.picked=null; r.combo=0; state.view="rpgbattle"; renderBattle();
   });
 }
