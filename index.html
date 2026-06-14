@@ -303,6 +303,25 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .consbtn:disabled{opacity:.4;cursor:default}
 .consbtn:not(:disabled):hover{background:var(--accent-soft)}
 .questrar{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:1px}
+.questcard{border-width:2px}
+.treelist{display:flex;flex-direction:column;gap:8px}
+.treerow{display:flex;gap:12px;align-items:center;border:1px solid var(--border);border-radius:14px;padding:11px 13px;background:#fff}
+.treerow.done{opacity:.62}
+.treerow.cur{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 6px 18px rgba(52,89,74,.14)}
+.treerow.fut{opacity:.5}
+.treeav{font-size:30px;flex:none;width:40px;text-align:center}
+.treebody{flex:1;min-width:0}
+.treetop{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.treename{font-weight:700;font-size:15px}
+.treetag{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px}
+.treetag.ok{background:var(--ok-soft);color:var(--ok)}
+.treetag.now{background:var(--accent);color:#fff}
+.treedesc{font-size:12.5px;color:var(--muted);line-height:1.45;margin-top:3px}
+.invrow,.invtile{border-width:2px!important}
+.rartile{border:2px solid #ccc;border-radius:14px;padding:10px 12px;background:#fff;display:flex;align-items:center;gap:10px}
+.rarlabel{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.rpgtoggle{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;color:var(--accent);border:1px solid var(--accent-line);border-radius:11px;padding:9px 13px;cursor:pointer;background:#fff}
+.rpgtoggle input{width:16px;height:16px;accent-color:var(--accent)}
 .herorow{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:13.5px;font-weight:600}
 .questgrid{display:grid;grid-template-columns:1fr;gap:10px;max-width:420px;margin:14px auto}
 .questcard{border:1px solid var(--accent-line);background:linear-gradient(135deg,rgba(255,255,255,.8),rgba(255,255,255,.55));border-radius:14px;padding:14px;cursor:pointer;text-align:center;transition:.15s}
@@ -478,10 +497,10 @@ function markDeleted(id){ state.deleted=state.deleted||{}; state.deleted[id]=Dat
 function saveSekcje(){ state.sekUpdated=Date.now(); try{ localStorage.setItem(SEK_KEY,JSON.stringify({sekcje:state.sekcje,updated:state.sekUpdated})); }catch(e){} if(loggedIn()) syncSoon(); }
 function sekStats(sk){ let total=0,mastered=0; (sk.noteIds||[]).forEach(id=>{ const n=state.notes.find(x=>x.id===id); if(n&&n.bank&&n.bank.questions){ const qs=n.bank.questions.filter(q=>!q.skip); total+=qs.length; mastered+=qs.filter(q=>q.streak>=1).length; } }); return {total,mastered,pct:total?Math.round(100*mastered/total):0}; }
 const HERO_KEY="notatkiai.hero.v1";
-function defaultHero(){ return {name:"Nikt",level:1,xp:0,xpNext:100,baseHp:100,hp:100,baseAtk:12,baseDef:2,baseCrit:5,coins:0,items:[],cons:{potion:0,fury:0,ward:0},defeated:0,answered:0,questAt:8,questStep:3,enemyIdx:0}; }
-function loadHero(){ try{ state.hero=Object.assign(defaultHero(),JSON.parse(localStorage.getItem(HERO_KEY))||{}); if(!state.hero.cons) state.hero.cons={potion:0,fury:0,ward:0}; if(!state.hero.items) state.hero.items=[]; }catch(e){ state.hero=defaultHero(); } }
+function defaultHero(){ return {name:"Bezimienny",level:1,xp:0,hp:null,coins:0,items:[],cons:{potion:0,fury:0,ward:0},defeated:0,answered:0,questAt:8,questStep:3,enemyIdx:0}; }
+function loadHero(){ try{ state.hero=Object.assign(defaultHero(),JSON.parse(localStorage.getItem(HERO_KEY))||{}); const h=state.hero; if(!h.cons) h.cons={potion:0,fury:0,ward:0}; if(!h.items) h.items=[]; if(!h.level||h.level<1) h.level=1; if(h.level>15) h.level=15; if(typeof h.xp!=="number") h.xp=0; if(h.hp==null) h.hp=heroStats(h).maxHp; }catch(e){ state.hero=defaultHero(); state.hero.hp=heroStats(state.hero).maxHp; } }
 function saveHero(){ try{ localStorage.setItem(HERO_KEY,JSON.stringify(state.hero)); }catch(e){} }
-function heroAvatar(l){ return l>=12?"🦸":l>=8?"🧙":l>=5?"⚔️":l>=3?"🚶":"🧎"; }
+function heroAvatar(l){ return RANKS15[Math.min((l||1)-1,14)].a; }
 
 
 const DB_NAME="notatkiai_db", STORE="notes";
@@ -1133,8 +1152,26 @@ function renderHome(){
 }
 
 /* ---------- Tryb RPG (słowiański) ---------- */
-const RANKS=[[1,"Wieśniak"],[2,"Kmieć"],[3,"Parobek"],[4,"Giermek"],[5,"Czeladnik"],[6,"Zbrojny"],[7,"Pachołek grodowy"],[8,"Rycerz"],[9,"Rycerz chorąży"],[10,"Komes"],[11,"Kasztelan"],[12,"Wojewoda"],[14,"Bohater krainy"],[16,"Pogromca biesów"]];
-function heroRank(lvl){ let r=RANKS[0][1]; for(const [l,name] of RANKS){ if(lvl>=l) r=name; } return r; }
+const RANKS15=[
+  {n:"Wyrzutek",a:"🧎",d:"Najniższy z najniższych. Łachmany, sen w błocie i brutalna walka, by dożyć świtu."},
+  {n:"Ciura obozowa",a:"⛏️",d:"Wyrobnik od najbrudniejszej roboty w kopalni i kamieniołomie. Kilof od świtu do nocy za czerstwy chleb."},
+  {n:"Parobek",a:"🧺",d:"Praca w osadzie: rąbiesz drwa, nosisz wodę. Masz wreszcie stały dach nad głową."},
+  {n:"Pachołek",a:"🧹",d:"Osobisty służący zbrojnego lub kowala. Ostrzysz broń i uczysz się praw tego świata."},
+  {n:"Goniec",a:"🏃",d:"Roznosisz listy i plotki. Stajesz się przydatny, straże przestają cię przepędzać."},
+  {n:"Rekrut",a:"🗡️",d:"Pierwszy zardzewiały miecz i drewniana tarcza. Najniższe ogniwo sił zbrojnych."},
+  {n:"Strażnik",a:"🛡️",d:"Pełnoprawny strażnik ze stałym żołdem. Stoisz na bramie i egzekwujesz porządek."},
+  {n:"Weteran",a:"🎖️",d:"Blizny z niejednego boju. Dowodzisz małym oddziałem, masz prawdziwą kolczugę."},
+  {n:"Gwardzista",a:"⚔️",d:"Elita. Przyboczna ochrona zarządcy. Najlepsza kuta broń, twoje słowo to niemal prawo."},
+  {n:"Rycerz",a:"🐴",d:"Pasowany. Koń bojowy, lśniąca zbroja płytowa, własny herb. Wchodzisz w stan szlachecki."},
+  {n:"Kasztelan",a:"🏰",d:"Dowodzisz twierdzą w imieniu władcy. Odpowiadasz głową za obronność garnizonu."},
+  {n:"Baron",a:"📜",d:"Własna ziemia, zamek i wsie. Ustalasz lokalne prawo i ściągasz podatki."},
+  {n:"Hrabia",a:"👑",d:"Potęga. Pomniejsi baronowie są twoimi lennikami, utrzymujesz prywatną armię."},
+  {n:"Książę",a:"🦅",d:"Prawa ręka króla. Podlega ci cała prowincja, twoje decyzje kształtują losy tysięcy."},
+  {n:"Król",a:"♛",d:"Absolutny szczyt. Korona, posłuszne armie i imię, które przejdzie do historii."}
+];
+function rankName(h){ return RANKS15[Math.min((h.level||1)-1,14)].n; }
+function baseFor(lvl){ return {maxHp:90+(lvl-1)*18, atk:10+(lvl-1)*3, def:1+(lvl-1), crit:5+Math.floor((lvl-1)/2)}; }
+function xpNeeded(lvl){ return Math.round(70*lvl*(1+(lvl-1)*0.35)); }
 const RARITY=[
   {key:"pospolity",col:"#9a9a93",mult:1.0,w:48,sell:6},
   {key:"zwyczajny",col:"#4a9e5e",mult:1.6,w:27,sell:14},
@@ -1180,7 +1217,7 @@ function genItem(lvl){
   return it;
 }
 function itemLabel(it){ const parts=[]; if(it.atk)parts.push("+"+it.atk+" ATK"); if(it.def)parts.push("+"+it.def+" OBR"); if(it.hp)parts.push("+"+it.hp+" HP"); if(it.crit)parts.push("+"+it.crit+"% kryt."); return parts.join(", "); }
-function heroStats(h){ let maxHp=h.baseHp,atk=h.baseAtk,def=h.baseDef,crit=h.baseCrit; (h.items||[]).forEach(it=>{ maxHp+=it.hp||0; atk+=it.atk||0; def+=it.def||0; crit+=it.crit||0; }); return {maxHp,atk,def,crit}; }
+function heroStats(h){ const b=baseFor(h.level||1); let maxHp=b.maxHp,atk=b.atk,def=b.def,crit=b.crit; (h.items||[]).forEach(it=>{ maxHp+=it.hp||0; atk+=it.atk||0; def+=it.def||0; crit+=it.crit||0; }); return {maxHp,atk,def,crit}; }
 
 const SLAV=[["Polewik","🌾"],["Skrzat","🧌"],["Utopiec","🧜"],["Południca","☀️"],["Wodnik","💧"],["Mamuna","👶"],["Licho","🃏"],["Strzyga","🧛"],["Wilkołak","🐺"],["Borowy","🐗"],["Nocnica","🦉"],["Mara","👻"],["Bies","😈"],["Czart","🐐"],["Leszy","🌲"],["Żmij","🐉"],["Płanetnik","🌩️"],["Wij","🪱"],["Babojga","🧙‍♀️"],["Kościej","☠️"]];
 function makeEnemy(idx,lvl){
@@ -1212,15 +1249,15 @@ function renderRpgHome(){
       <div class="herocard">
         <div class="heroav">${heroAvatar(h.level)}</div>
         <div class="heroinfo">
-          <div class="heroname">${esc(h.name)} <span class="herolvl">${esc(heroRank(h.level))} · poz. ${h.level}</span></div>
+          <div class="heroname">${esc(rankName(h))} <span class="herolvl">ranga ${h.level}/15</span></div>
           <div class="herobars">
             <div class="hbarlbl">❤️ ${h.hp}/${st.maxHp}</div><div class="hbar"><div class="hbarfill hp" style="width:${Math.round(100*h.hp/st.maxHp)}%"></div></div>
-            <div class="hbarlbl">✨ XP ${h.xp}/${h.xpNext}</div><div class="hbar"><div class="hbarfill xp" style="width:${Math.round(100*h.xp/h.xpNext)}%"></div></div>
+            <div class="hbarlbl">✨ ${h.level>=15?"MAKS. RANGA":("XP "+h.xp+"/"+xpNeeded(h.level))}</div><div class="hbar"><div class="hbarfill xp" style="width:${h.level>=15?100:Math.round(100*h.xp/xpNeeded(h.level))}%"></div></div>
           </div>
           <div class="herostats"><span>🗡️ ${st.atk}</span><span>🛡️ ${st.def}</span><span>🎯 ${st.crit}%</span><span>🪙 ${h.coins}</span><span>☠️ ${h.defeated}</span></div>
         </div>
       </div>
-      <div class="row" style="margin:14px 0 6px"><button class="btn ghost" id="rpgShop">🛒 Kupiec</button><button class="btn ghost" id="rpgInv">🎒 Ekwipunek (${(h.items||[]).length})</button>${(h.defeated||h.level>1)?`<button class="btn ghost" id="rpgReset" style="color:var(--bad)">↺ Nowa postać</button>`:""}</div>
+      <div class="row" style="margin:14px 0 6px"><button class="btn ghost" id="rpgTree">🌳 Drzewo rozwoju</button><button class="btn ghost" id="rpgShop">🛒 Kupiec</button><button class="btn ghost" id="rpgInv">🎒 Ekwipunek (${(h.items||[]).length})</button>${(h.defeated||h.level>1)?`<button class="btn ghost" id="rpgReset" style="color:var(--bad)">↺ Nowa postać</button>`:""}</div>
       <div class="sublabel">Wybierz wyprawę</div>
       <div class="hlist">
         ${banksList.map(n=>`<div class="hcard" data-advb="${n.id}"><div class="hbody"><h4>🏦 ${esc(n.note.title||"Bank")}</h4><div class="hmeta">${n.bank.questions.filter(x=>!x.skip).length} pytań</div></div><span class="hchev">⚔️</span></div>`).join("")}
@@ -1232,9 +1269,26 @@ function renderRpgHome(){
   content.querySelectorAll("[data-ht]").forEach(b=>b.onclick=()=>{ state.libTab=b.getAttribute("data-ht"); renderHome(); });
   content.querySelectorAll("[data-advb]").forEach(el=>el.onclick=()=>startAdventure(rpgPoolFromNotes([el.getAttribute("data-advb")])));
   content.querySelectorAll("[data-advs]").forEach(el=>{ const sk=state.sekcje.find(x=>x.id===el.getAttribute("data-advs")); el.onclick=()=>startAdventure(rpgPoolFromNotes(sk.noteIds||[])); });
+  const tr=document.getElementById("rpgTree"); if(tr) tr.onclick=()=>renderTree();
   const sh=document.getElementById("rpgShop"); if(sh) sh.onclick=()=>renderShop();
   const iv=document.getElementById("rpgInv"); if(iv) iv.onclick=()=>renderInventory();
   const rs=document.getElementById("rpgReset"); if(rs) rs.onclick=()=>{ if(confirm("Rozpocząć od nowa? Cały postęp RPG przepadnie.")){ state.hero=defaultHero(); saveHero(); renderRpgHome(); } };
+}
+function renderTree(){
+  const h=state.hero;
+  const rows=RANKS15.map((r,i)=>{ const lvl=i+1; const cur=lvl===h.level, done=lvl<h.level, fut=lvl>h.level;
+    return `<div class="treerow ${cur?"cur":done?"done":"fut"}">
+      <div class="treeav">${r.a}</div>
+      <div class="treebody"><div class="treetop"><span class="treename">${lvl}. ${esc(r.n)}</span>${done?'<span class="treetag ok">zdobyte</span>':cur?'<span class="treetag now">tu jesteś</span>':''}</div><div class="treedesc">${esc(r.d)}</div></div>
+    </div>`; }).join("");
+  content.innerHTML=`
+    <button class="backbtn" id="treeBack">‹ Wstecz</button>
+    <div class="home"><h1 class="hello" style="font-size:26px">🌳 Droga rozwoju</h1>
+    <div class="hellosub">${esc(rankName(h))} · ranga ${h.level}/15 ${h.level<15?`· do awansu: ${xpNeeded(h.level)-h.xp} XP`:"· szczyt osiągnięty"}</div>
+    ${h.level<15?`<div class="msbar" style="max-width:420px;margin:4px 0 16px"><div class="msfill" style="width:${Math.round(100*h.xp/xpNeeded(h.level))}%"></div></div>`:""}
+    <div class="treelist">${rows}</div>
+    <div class="haddwrap"></div></div>`;
+  document.getElementById("treeBack").onclick=()=>renderRpgHome();
 }
 function renderInventory(){
   const h=state.hero;
@@ -1242,7 +1296,7 @@ function renderInventory(){
     <button class="backbtn" id="invBack">‹ Wstecz</button>
     <div class="home"><h1 class="hello" style="font-size:26px">🎒 Ekwipunek</h1>
     <div class="hellosub">🪙 ${h.coins} groszy · sprzedaj zbędne przedmioty kupcowi.</div>
-    <div class="hlist">${(h.items||[]).length?h.items.map(it=>`<div class="hcard"><div class="hbody"><h4 style="color:${it.col}">${it.ic} ${esc(it.nm)} <span style="font-size:11px;opacity:.8">(${it.rar})</span></h4><div class="hmeta">${itemLabel(it)} · wartość 🪙 ${it.sell}</div></div><button class="btn ghost" data-sell="${it.id}" style="color:var(--bad);font-size:12px;padding:6px 10px">Sprzedaj</button></div>`).join(""):`<div class="hempty">Pusty ekwipunek. Zdobywaj przedmioty w wyprawach.</div>`}</div>
+    <div class="hlist">${(h.items||[]).length?h.items.map(it=>`<div class="hcard" style="border:2px solid ${it.col}"><div class="hbody"><h4>${it.ic} ${esc(it.nm)} <span class="rarlabel" style="color:${it.col}">${it.rar}</span></h4><div class="hmeta">${itemLabel(it)} · wartość 🪙 ${it.sell}</div></div><button class="btn ghost" data-sell="${it.id}" style="color:var(--bad);font-size:12px;padding:6px 10px">Sprzedaj</button></div>`).join(""):`<div class="hempty">Pusty ekwipunek. Zdobywaj przedmioty w wyprawach.</div>`}</div>
     <div class="haddwrap"></div></div>`;
   document.getElementById("invBack").onclick=()=>renderRpgHome();
   content.querySelectorAll("[data-sell]").forEach(b=>b.onclick=()=>{ const id=b.getAttribute("data-sell"); const it=h.items.find(x=>x.id===id); if(!it) return; h.coins+=it.sell; h.items=h.items.filter(x=>x.id!==id); if(h.hp>heroStats(h).maxHp) h.hp=heroStats(h).maxHp; saveHero(); renderInventory(); });
@@ -1269,14 +1323,14 @@ function startAdventure(pool){
   state.rpg={enemy:makeEnemy(h.enemyIdx,h.level),pool:rpgShuffle(pool),qi:0,combo:0,picked:null,revealed:false,fury:false,ward:false};
   state.view="rpgbattle"; renderBattle();
 }
-function rpgLevelCheck(){ const h=state.hero; let up=false; while(h.xp>=h.xpNext){ h.xp-=h.xpNext; h.level++; h.xpNext=Math.round(h.xpNext*1.35); h.baseHp+=15; h.baseAtk+=2; h.baseDef+=1; h.hp=heroStats(h).maxHp; up=true; } return up; }
+function rpgLevelCheck(){ const h=state.hero; let up=false; while(h.level<15 && h.xp>=xpNeeded(h.level)){ h.xp-=xpNeeded(h.level); h.level++; h.hp=heroStats(h).maxHp; up=true; } if(h.level>=15) h.xp=Math.min(h.xp,xpNeeded(15)); return up; }
 function renderBattle(){
   const h=state.hero, r=state.rpg; if(!r){ openRpg(); return; }
   const st=heroStats(h); const en=r.enemy; const q=r.pool[r.qi % r.pool.length];
   const enPct=Math.max(0,Math.round(100*en.hp/en.maxHp)), hpPct=Math.max(0,Math.round(100*h.hp/st.maxHp));
   content.innerHTML=`
     <div class="battle">
-      <div class="bbar"><button class="backbtn" id="bExit" style="margin:0">‹ Przerwij</button><span class="bmeta">${esc(heroRank(h.level))} · poz. ${h.level} · 🪙 ${h.coins}</span></div>
+      <div class="bbar"><button class="backbtn" id="bExit" style="margin:0">‹ Przerwij</button><span class="bmeta">${esc(rankName(h))} · 🪙 ${h.coins}</span></div>
       <div class="enemy ${r.enemyHurt?"hurt":""}">
         <div class="enname">${esc(en.name)}</div>
         <div class="enemoji">${en.emoji}${r.floatEn?`<span class="float dmg">-${r.floatEn}</span>`:""}</div>
@@ -1314,6 +1368,7 @@ function rpgAnswer(oi){
   if(oi===q.correct){
     r.combo++; let dmg=st.atk+(r.combo-1)*2; const crit=Math.random()*100<st.crit; if(crit) dmg=Math.round(dmg*1.8); if(r.fury){ dmg*=2; r.fury=false; }
     r.enemy.hp-=dmg; r.floatEn=dmg+(crit?" KRYT!":""); r.enemyHurt=true;
+    if((q.streak||0)<1){ q.streak=1; q.seen=(q.seen||0)+1; if(h.level<15){ h.xp+=10; rpgLevelCheck(); } r._learned=(r._learned||0)+1; try{ save(); syncSoon(); }catch(e){} } // XP tylko z nowych pytań
   } else {
     r.combo=0;
     if(r.ward){ r.ward=false; r.floatHero=0; }
@@ -1340,7 +1395,7 @@ function renderQuest(leveled,coinGain){
     <div class="qsetup rpgquest">
       <div class="qbadge big">📜</div>
       <h2 class="qtitle">Łup z wyprawy!</h2>
-      <p class="qsub">Zdobyłeś 🪙 ${coinGain} groszy.${leveled?` <b>Awans: ${esc(heroRank(h.level))}!</b>`:""} Wybierz jeden przedmiot:</p>
+      <p class="qsub">Zdobyłeś 🪙 ${coinGain} groszy.${leveled?` <b>Awans na: ${esc(rankName(h))}!</b>`:""} Wybierz jeden przedmiot:</p>
       <div class="questgrid">${choices.map((it,i)=>`<button class="questcard" data-qi="${i}" style="border-color:${it.col}"><div class="questic">${it.ic}</div><div class="questnm" style="color:${it.col}">${esc(it.nm)}</div><div class="questrar" style="color:${it.col}">${it.rar}</div><div class="questds">${itemLabel(it)}</div></button>`).join("")}</div>
       <div class="muted small" style="margin-top:10px">Niewybrane przedmioty przepadają.</div>
     </div>`;
@@ -1377,7 +1432,7 @@ function openSekcja(id){
       <h1 class="hello" style="font-size:clamp(24px,6vw,32px)">${esc(sk.name)} <button class="titledit" id="skRename" title="Zmień nazwę">✏️</button></h1>
       <div class="hellosub">${st.total} ${plural(st.total,"pytanie","pytania","pytań")} łącznie · 🎯 opanowano ${st.mastered}/${st.total} (${st.pct}%)</div>
       <div class="msbar" style="max-width:420px;margin:0 0 16px"><div class="msfill" style="width:${st.pct}%"></div></div>
-      <div class="row" style="margin:0 0 20px"><button class="btn" id="skTrain" ${st.total?"":"disabled"}>🎯 Ucz się (${st.total} pyt.)</button><button class="btn ghost" id="skRpg" ${st.total>=4?"":"disabled"}>⚔️ Graj RPG</button><button class="btn ghost" id="skDelBtn" style="color:var(--bad)">🗑 Usuń sekcję</button></div>
+      <div class="row" style="margin:0 0 20px"><button class="btn" id="skTrain" ${st.total?"":"disabled"}>🎯 Ucz się (${st.total} pyt.)</button><label class="rpgtoggle"><input type="checkbox" id="skRpg" ${state.rpgMode?"checked":""}> ⚔️ Tryb RPG</label><button class="btn ghost" id="skDelBtn" style="color:var(--bad)">🗑 Usuń sekcję</button></div>
       <div class="sublabel">Banki w sekcji</div>
       <div class="hlist" style="margin-bottom:18px">${memberCards}</div>
       <div class="sublabel">Dodaj banki do sekcji</div>
@@ -1386,8 +1441,8 @@ function openSekcja(id){
     </div>`;
   document.getElementById("skBack").onclick=()=>{ state.libTab="sekcje"; renderHome(); };
   document.getElementById("skDelBtn").onclick=()=>{ if(confirm("Usunąć tę sekcję? (notatki i banki pozostaną)")){ state.sekcje=state.sekcje.filter(x=>x.id!==id); saveSekcje(); state.libTab="sekcje"; renderHome(); } };
-  document.getElementById("skTrain").onclick=()=>startSekcjaMastery(sk);
-  const _skrpg=document.getElementById("skRpg"); if(_skrpg) _skrpg.onclick=()=>startAdventure(rpgPoolFromNotes(sk.noteIds||[]));
+  const _skrpg=document.getElementById("skRpg"); if(_skrpg) _skrpg.onchange=e=>{ state.rpgMode=e.target.checked; };
+  document.getElementById("skTrain").onclick=()=>{ if(state.rpgMode) startAdventure(rpgPoolFromNotes(sk.noteIds||[])); else startSekcjaMastery(sk); };
   document.getElementById("skRename").onclick=()=>{ const v=(prompt("Nowa nazwa sekcji:",sk.name)||"").trim(); if(v){ sk.name=v; saveSekcje(); openSekcja(id); } };
   content.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ sk.noteIds=sk.noteIds.filter(x=>x!==b.getAttribute("data-rm")); saveSekcje(); openSekcja(id); });
   const addBtn=document.getElementById("skAdd"); if(addBtn) addBtn.onclick=()=>{ const ids=[...content.querySelectorAll(".addbox input:checked")].map(c=>c.value); if(!ids.length) return; sk.noteIds=[...(sk.noteIds||[]),...ids]; saveSekcje(); openSekcja(id); };
@@ -1586,14 +1641,14 @@ function renderBankPane(){
       <p class="qsub">${b?`${bs.total} ${plural(bs.total,"pytanie","pytania","pytań")} · opanowano <b>${bs.mastered}</b> (${bs.pct}%)${bs.skipped?` · ${bs.skipped} pominięto`:""}`:"Pytania pokrywające 100% materiału tej notatki (zwykle 40-70)."}</p>
       ${b?`<div class="msbar" style="max-width:340px;margin:0 auto 18px"><div class="msfill" style="width:${bs.pct}%"></div></div>`:""}
       <div class="row" style="justify-content:center">
-        ${b?`<button class="btn" id="msStart">▶ Ćwicz</button><button class="btn ghost" id="bankRpg">⚔️ Graj RPG</button><button class="btn ghost" id="bankReset">↺ Resetuj postęp</button><button class="btn ghost" id="bankRegen">✨ Zbuduj od nowa</button><button class="btn ghost" id="bankDel" style="color:var(--bad)">🗑 Usuń bank</button>`:`<button class="btn" id="bankGen">✨ Zbuduj bank pytań</button>`}
+        ${b?`<button class="btn" id="msStart">▶ Ćwicz</button><label class="rpgtoggle"><input type="checkbox" id="bankRpg" ${state.rpgMode?"checked":""}> ⚔️ Tryb RPG</label><button class="btn ghost" id="bankReset">↺ Resetuj postęp</button><button class="btn ghost" id="bankRegen">✨ Zbuduj od nowa</button><button class="btn ghost" id="bankDel" style="color:var(--bad)">🗑 Usuń bank</button>`:`<button class="btn" id="bankGen">✨ Zbuduj bank pytań</button>`}
       </div>
       <p class="qopthint" style="max-width:430px;margin:16px auto 0">${b?"Pytanie uznajemy za opanowane po 1 poprawnej odpowiedzi, a błędne wracają w kolejnych rundach. Pytania zbędne możesz trwale pominąć przyciskiem podczas nauki. Budowa od nowa zastąpi bank wraz z postępem.":"Aplikacja przejdzie notatkę sekcja po sekcji i ułoży pytania sprawdzające każdy fakt — tak, by dało się opanować 100% materiału."}</p>
       ${!aiAvailable()?`<div class="banner warn" style="margin-top:14px;text-align:left">⚠️ Aby budować bank, wpisz klucz API w <b>⚙ Ustawienia AI</b>.</div>`:""}
     </div>`;
   const bg=document.getElementById("bankGen"); if(bg) bg.onclick=()=>generateBank(entry);
-  const msb=document.getElementById("msStart"); if(msb) msb.onclick=()=>startMastery(entry);
-  const brp=document.getElementById("bankRpg"); if(brp) brp.onclick=()=>startAdventure(rpgPoolFromNotes([entry.id]));
+  const brp=document.getElementById("bankRpg"); if(brp) brp.onchange=e=>{ state.rpgMode=e.target.checked; };
+  const msb=document.getElementById("msStart"); if(msb) msb.onclick=()=>{ if(state.rpgMode) startAdventure(rpgPoolFromNotes([entry.id])); else startMastery(entry); };
   const br=document.getElementById("bankReset"); if(br) br.onclick=()=>{ if(confirm("Wyzerować postęp banku pytań?")){ entry.bank.questions.forEach(x=>{x.streak=0;x.wrong=0;x.seen=0;}); entry.updated=Date.now(); save(); syncSoon(); renderBankPane(); } };
   const brg=document.getElementById("bankRegen"); if(brg) brg.onclick=()=>{ if(confirm("Zbudować bank od nowa? Obecne pytania i postęp zostaną zastąpione.")) generateBank(entry); };
   const bdl=document.getElementById("bankDel"); if(bdl) bdl.onclick=()=>{ if(confirm("Usunąć bank pytań tej notatki? (notatka zostanie)")){ entry.bank=null; entry.updated=Date.now(); save(); syncSoon(); renderBankPane(); } };
