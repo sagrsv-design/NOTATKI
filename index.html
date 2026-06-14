@@ -283,19 +283,26 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .herostats{display:flex;flex-wrap:wrap;gap:10px;font-size:12.5px;color:var(--muted);margin-top:6px}
 .invbox{display:flex;flex-wrap:wrap;gap:7px}
 .invitem{background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:600}
-.battle{max-width:600px;margin:0 auto;padding-bottom:30px}
-.enemy{text-align:center;margin:10px 0 18px;position:relative}
+.battle{max-width:560px;margin:0 auto;padding-bottom:20px}
+.bbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.bmeta{font-size:12px;color:var(--muted)}
+.enemy{text-align:center;margin:4px 0 10px;position:relative}
 .enname{font-weight:700;font-size:16px;margin-bottom:4px}
-.enemoji{font-size:70px;line-height:1;transition:transform .15s;display:inline-block}
+.enemoji{font-size:52px;line-height:1;transition:transform .15s;display:inline-block;position:relative}
 .enemy.hurt .enemoji{animation:shake .3s}
 .hero.hurt{animation:shake .3s}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
 .float{position:absolute;left:50%;transform:translateX(-50%);top:30px;font-weight:800;color:#d83a52;font-size:22px;animation:floatup 1s ease-out;pointer-events:none}
 .float.sm{position:static;display:inline;font-size:14px;animation:none}
 @keyframes floatup{from{opacity:1;top:40px}to{opacity:0;top:0}}
-.battleq{background:linear-gradient(135deg,rgba(255,255,255,.78),rgba(255,255,255,.55));border:1px solid rgba(255,255,255,.6);border-radius:16px;padding:16px 18px;margin:0 0 16px}
-.battleq .qt{font-weight:600;font-size:15.5px;margin-bottom:12px}
-.hero{margin:6px 0 14px}
+.battleq{background:linear-gradient(135deg,rgba(255,255,255,.78),rgba(255,255,255,.55));border:1px solid rgba(255,255,255,.6);border-radius:14px;padding:13px 15px;margin:0 0 10px}
+.battleq .qt{font-weight:600;font-size:15px;margin-bottom:10px}
+.hero{margin:4px 0 8px}
+.consrow{display:flex;gap:8px;justify-content:center;margin:8px 0}
+.consbtn{border:1px solid var(--accent-line);background:#fff;border-radius:10px;padding:7px 12px;font-size:14px;font-weight:600;cursor:pointer}
+.consbtn:disabled{opacity:.4;cursor:default}
+.consbtn:not(:disabled):hover{background:var(--accent-soft)}
+.questrar{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:1px}
 .herorow{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:13.5px;font-weight:600}
 .questgrid{display:grid;grid-template-columns:1fr;gap:10px;max-width:420px;margin:14px auto}
 .questcard{border:1px solid var(--accent-line);background:linear-gradient(135deg,rgba(255,255,255,.8),rgba(255,255,255,.55));border-radius:14px;padding:14px;cursor:pointer;text-align:center;transition:.15s}
@@ -471,11 +478,11 @@ function markDeleted(id){ state.deleted=state.deleted||{}; state.deleted[id]=Dat
 function saveSekcje(){ state.sekUpdated=Date.now(); try{ localStorage.setItem(SEK_KEY,JSON.stringify({sekcje:state.sekcje,updated:state.sekUpdated})); }catch(e){} if(loggedIn()) syncSoon(); }
 function sekStats(sk){ let total=0,mastered=0; (sk.noteIds||[]).forEach(id=>{ const n=state.notes.find(x=>x.id===id); if(n&&n.bank&&n.bank.questions){ const qs=n.bank.questions.filter(q=>!q.skip); total+=qs.length; mastered+=qs.filter(q=>q.streak>=1).length; } }); return {total,mastered,pct:total?Math.round(100*mastered/total):0}; }
 const HERO_KEY="notatkiai.hero.v1";
-function defaultHero(){ return {name:"Nikt",level:1,xp:0,xpNext:100,maxHp:100,hp:100,atk:12,def:2,crit:5,items:[],defeated:0,answered:0,questAt:8,questStep:3,enemyIdx:0}; }
-function loadHero(){ try{ state.hero=Object.assign(defaultHero(),JSON.parse(localStorage.getItem(HERO_KEY))||{}); }catch(e){ state.hero=defaultHero(); } }
+function defaultHero(){ return {name:"Nikt",level:1,xp:0,xpNext:100,baseHp:100,hp:100,baseAtk:12,baseDef:2,baseCrit:5,coins:0,items:[],cons:{potion:0,fury:0,ward:0},defeated:0,answered:0,questAt:8,questStep:3,enemyIdx:0}; }
+function loadHero(){ try{ state.hero=Object.assign(defaultHero(),JSON.parse(localStorage.getItem(HERO_KEY))||{}); if(!state.hero.cons) state.hero.cons={potion:0,fury:0,ward:0}; if(!state.hero.items) state.hero.items=[]; }catch(e){ state.hero=defaultHero(); } }
 function saveHero(){ try{ localStorage.setItem(HERO_KEY,JSON.stringify(state.hero)); }catch(e){} }
 function heroAvatar(l){ return l>=12?"🦸":l>=8?"🧙":l>=5?"⚔️":l>=3?"🚶":"🧎"; }
-function rpgPool(){ const out=[]; state.notes.forEach(n=>{ if(n.bank&&n.bank.questions) n.bank.questions.forEach(q=>{ if(!q.skip&&q.options&&q.options.length===4) out.push(q); }); }); return out; }
+
 
 const DB_NAME="notatkiai_db", STORE="notes";
 let _idbOk=(typeof indexedDB!=="undefined" && !!indexedDB);
@@ -1125,31 +1132,72 @@ function renderHome(){
   document.getElementById("homeNew").onclick=()=>{ state.draft={title:"",text:"",fileName:"",images:[]}; renderInput(); };
 }
 
-/* ---------- Tryb RPG ---------- */
-const ENEMIES=[["Szczur","🐀"],["Goblin","👺"],["Szkielet","💀"],["Pełzacz","🕷️"],["Bandyta","🦹"],["Ogr","👹"],["Wilk","🐺"],["Golem","🗿"],["Zjawa","👻"],["Mroczny rycerz","🛡️"],["Hydra","🐍"],["Smok","🐉"],["Arcymag","🧙‍♂️"],["Władca otchłani","👑"]];
-const RPG_ITEMS=[
-  {ic:"🗡️",name:"Stalowy miecz",desc:"+5 ATK",apply:h=>h.atk+=5},
-  {ic:"⚔️",name:"Bliźniacze ostrza",desc:"+8 ATK, -10 max HP",apply:h=>{h.atk+=8;h.maxHp=Math.max(40,h.maxHp-10);h.hp=Math.min(h.hp,h.maxHp);}},
-  {ic:"🛡️",name:"Żelazna zbroja",desc:"+4 OBR",apply:h=>h.def+=4},
-  {ic:"❤️",name:"Amulet życia",desc:"+30 max HP i pełne leczenie",apply:h=>{h.maxHp+=30;h.hp=h.maxHp;}},
-  {ic:"🏹",name:"Łuk precyzji",desc:"+10% kryt.",apply:h=>h.crit+=10},
-  {ic:"🔮",name:"Różdżka mocy",desc:"+3 ATK, +2 OBR",apply:h=>{h.atk+=3;h.def+=2;}},
-  {ic:"🍖",name:"Uczta",desc:"Pełne leczenie + 15 max HP",apply:h=>{h.maxHp+=15;h.hp=h.maxHp;}},
-  {ic:"💎",name:"Klejnot furii",desc:"+6 ATK, +5% kryt.",apply:h=>{h.atk+=6;h.crit+=5;}}
+/* ---------- Tryb RPG (słowiański) ---------- */
+const RANKS=[[1,"Wieśniak"],[2,"Kmieć"],[3,"Parobek"],[4,"Giermek"],[5,"Czeladnik"],[6,"Zbrojny"],[7,"Pachołek grodowy"],[8,"Rycerz"],[9,"Rycerz chorąży"],[10,"Komes"],[11,"Kasztelan"],[12,"Wojewoda"],[14,"Bohater krainy"],[16,"Pogromca biesów"]];
+function heroRank(lvl){ let r=RANKS[0][1]; for(const [l,name] of RANKS){ if(lvl>=l) r=name; } return r; }
+const RARITY=[
+  {key:"pospolity",col:"#9a9a93",mult:1.0,w:48,sell:6},
+  {key:"zwyczajny",col:"#4a9e5e",mult:1.6,w:27,sell:14},
+  {key:"rzadki",col:"#3f7fd0",mult:2.4,w:14,sell:34},
+  {key:"epicki",col:"#9a5cd0",mult:3.4,w:7,sell:80},
+  {key:"legendarny",col:"#e08a2e",mult:4.7,w:3,sell:190},
+  {key:"unikat",col:"#d83a52",mult:6.5,w:1,sell:480}
 ];
-function makeEnemy(idx,heroLvl){
-  const t=ENEMIES[Math.min(idx,ENEMIES.length-1)];
-  const tier=Math.floor(idx/ENEMIES.length); // pętla z mnożnikiem przy kolejnych okrążeniach
-  const hp=Math.round((30+idx*15+heroLvl*5)*(1+tier*0.6));
-  const atk=Math.round((5+idx*2+heroLvl)*(1+tier*0.4));
-  return {name:t[0]+(tier?" +"+tier:""),emoji:t[1],maxHp:hp,hp:hp,atk:atk};
+function rollRarity(lvl){
+  // lekki bonus do lepszych łupów wraz z poziomem
+  const arr=RARITY.map((r,i)=>({r,wt:r.w*(1+(i>=2?lvl*0.03*i:0))}));
+  let tot=arr.reduce((a,x)=>a+x.wt,0), p=Math.random()*tot;
+  for(const x of arr){ if((p-=x.wt)<=0) return x.r; } return RARITY[0];
+}
+// bazy przedmiotów: typ decyduje o stacie (broń→atk, pancerz→def, talizman→hp/kryt)
+const ITEM_BASES=[
+  {ic:"🧹",nm:"Miotła",type:"weapon",base:3},
+  {ic:"🔱",nm:"Widły",type:"weapon",base:4},
+  {ic:"🪓",nm:"Topór drwala",type:"weapon",base:5},
+  {ic:"⛏️",nm:"Kosa bojowa",type:"weapon",base:6},
+  {ic:"🗡️",nm:"Krótki miecz",type:"weapon",base:7},
+  {ic:"⚔️",nm:"Miecz wiedźmiński",type:"weapon",base:9},
+  {ic:"🔨",nm:"Buława",type:"weapon",base:8},
+  {ic:"👕",nm:"Łachmany",type:"armor",base:2},
+  {ic:"🧥",nm:"Kubrak skórzany",type:"armor",base:3},
+  {ic:"🦺",nm:"Kolczuga",type:"armor",base:4},
+  {ic:"🛡️",nm:"Napierśnik",type:"armor",base:6},
+  {ic:"🪬",nm:"Amulet ochronny",type:"talisman",base:0},
+  {ic:"💍",nm:"Pierścień mocy",type:"talisman",base:0},
+  {ic:"🦷",nm:"Wilczy kieł",type:"talisman",base:0},
+  {ic:"🪶",nm:"Pióropusz",type:"talisman",base:0}
+];
+function genItem(lvl){
+  const base=ITEM_BASES[Math.floor(Math.random()*ITEM_BASES.length)];
+  const rar=rollRarity(lvl);
+  const it={id:uid(),ic:base.ic,nm:base.nm,type:base.type,rar:rar.key,col:rar.col,atk:0,def:0,hp:0,crit:0,sell:Math.round(rar.sell*(1+lvl*0.05))};
+  const s=Math.max(1,Math.round(base.base*rar.mult)) ;
+  if(base.type==="weapon") it.atk=s;
+  else if(base.type==="armor") it.def=s;
+  else { // talizman: losowo hp / kryt / mieszanka
+    const k=Math.random(); if(k<0.5) it.hp=Math.round(8*rar.mult); else if(k<0.8){ it.crit=Math.round(3*rar.mult); } else { it.atk=Math.round(2*rar.mult); it.crit=Math.round(2*rar.mult); }
+  }
+  return it;
+}
+function itemLabel(it){ const parts=[]; if(it.atk)parts.push("+"+it.atk+" ATK"); if(it.def)parts.push("+"+it.def+" OBR"); if(it.hp)parts.push("+"+it.hp+" HP"); if(it.crit)parts.push("+"+it.crit+"% kryt."); return parts.join(", "); }
+function heroStats(h){ let maxHp=h.baseHp,atk=h.baseAtk,def=h.baseDef,crit=h.baseCrit; (h.items||[]).forEach(it=>{ maxHp+=it.hp||0; atk+=it.atk||0; def+=it.def||0; crit+=it.crit||0; }); return {maxHp,atk,def,crit}; }
+
+const SLAV=[["Polewik","🌾"],["Skrzat","🧌"],["Utopiec","🧜"],["Południca","☀️"],["Wodnik","💧"],["Mamuna","👶"],["Licho","🃏"],["Strzyga","🧛"],["Wilkołak","🐺"],["Borowy","🐗"],["Nocnica","🦉"],["Mara","👻"],["Bies","😈"],["Czart","🐐"],["Leszy","🌲"],["Żmij","🐉"],["Płanetnik","🌩️"],["Wij","🪱"],["Babojga","🧙‍♀️"],["Kościej","☠️"]];
+function makeEnemy(idx,lvl){
+  const t=SLAV[Math.min(idx,SLAV.length-1)]; const loop=Math.floor(idx/SLAV.length);
+  const hp=Math.round((30+idx*15+lvl*5)*(1+loop*0.7));
+  const atk=Math.round((5+idx*2+lvl)*(1+loop*0.45));
+  return {name:t[0]+(loop?" "+("II III IV V".split(" ")[Math.min(loop-1,3)]):""),emoji:t[1],maxHp:hp,hp:hp,atk:atk};
 }
 function rpgShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function rpgPoolAll(){ const out=[]; state.notes.forEach(n=>{ if(n.bank&&n.bank.questions) n.bank.questions.forEach(q=>{ if(!q.skip&&q.options&&q.options.length===4) out.push(q); }); }); return out; }
+function rpgPoolFromNotes(ids){ const out=[]; ids.forEach(id=>{ const n=state.notes.find(x=>x.id===id); if(n&&n.bank&&n.bank.questions) n.bank.questions.forEach(q=>{ if(!q.skip&&q.options&&q.options.length===4) out.push(q); }); }); return out; }
+
 function openRpg(){ state.libTab="rpg"; state.view="home"; renderHome(); }
 function renderRpgHome(){
-  const h=state.hero; const pool=rpgPool();
-  const qn=state.notes.filter(n=>n.quiz&&n.quiz.length).length;
-  const bn=state.notes.filter(n=>n.bank&&n.bank.questions&&n.bank.questions.length).length;
+  const h=state.hero; const st=heroStats(h);
+  if(h.hp==null||h.hp>st.maxHp) h.hp=st.maxHp;
+  const banksList=state.notes.filter(n=>n.bank&&n.bank.questions&&n.bank.questions.filter(x=>!x.skip).length>=4);
   content.innerHTML=`
     <div class="home rpg">
       <div class="htabs" style="margin-bottom:18px">
@@ -1159,52 +1207,81 @@ function renderRpgHome(){
         <button class="htab" data-ht="sekcje">📚 Sekcje</button>
         <button class="htab active" data-ht="rpg">⚔️ RPG</button>
       </div>
-      <h1 class="hello">⚔️ Tryb RPG</h1>
-      <div class="hellosub">Twój bohater rośnie w siłę, odpowiadając na pytania z banków. Pokonuj wrogów, zdobywaj przedmioty, idź dalej.</div>
+      <h1 class="hello">⚔️ Wyprawy</h1>
+      <div class="hellosub">Bohater rośnie w siłę, gdy odpowiadasz na pytania. Wybierz bank lub sekcję i rusz na słowiańskie bestie.</div>
       <div class="herocard">
         <div class="heroav">${heroAvatar(h.level)}</div>
         <div class="heroinfo">
-          <div class="heroname">${esc(h.name)} <span class="herolvl">poz. ${h.level}</span></div>
+          <div class="heroname">${esc(h.name)} <span class="herolvl">${esc(heroRank(h.level))} · poz. ${h.level}</span></div>
           <div class="herobars">
-            <div class="hbarlbl">❤️ ${h.hp}/${h.maxHp}</div><div class="hbar"><div class="hbarfill hp" style="width:${Math.round(100*h.hp/h.maxHp)}%"></div></div>
+            <div class="hbarlbl">❤️ ${h.hp}/${st.maxHp}</div><div class="hbar"><div class="hbarfill hp" style="width:${Math.round(100*h.hp/st.maxHp)}%"></div></div>
             <div class="hbarlbl">✨ XP ${h.xp}/${h.xpNext}</div><div class="hbar"><div class="hbarfill xp" style="width:${Math.round(100*h.xp/h.xpNext)}%"></div></div>
           </div>
-          <div class="herostats"><span>🗡️ ATK ${h.atk}</span><span>🛡️ OBR ${h.def}</span><span>🎯 kryt. ${h.crit}%</span><span>☠️ pokonani: ${h.defeated}</span></div>
+          <div class="herostats"><span>🗡️ ${st.atk}</span><span>🛡️ ${st.def}</span><span>🎯 ${st.crit}%</span><span>🪙 ${h.coins}</span><span>☠️ ${h.defeated}</span></div>
         </div>
       </div>
-      ${h.items.length?`<div class="sublabel">Ekwipunek</div><div class="invbox">${h.items.map(it=>`<span class="invitem" title="${esc(it.desc)}">${it.ic} ${esc(it.name)}</span>`).join("")}</div>`:""}
-      <div class="row" style="margin-top:18px">${pool.length>=4?`<button class="btn" id="rpgGo">${h.defeated?"⚔️ Kontynuuj wyprawę":"⚔️ Wyrusz na wyprawę"}</button>`:""}${h.defeated||h.level>1?`<button class="btn ghost" id="rpgReset" style="color:var(--bad)">↺ Nowa postać</button>`:""}</div>
-      ${pool.length<4?`<div class="hempty">Potrzebujesz banku pytań, by walczyć. Otwórz notatkę → 🏦 Bank → Zbuduj bank, a potem wróć tutaj.</div>`:""}
+      <div class="row" style="margin:14px 0 6px"><button class="btn ghost" id="rpgShop">🛒 Kupiec</button><button class="btn ghost" id="rpgInv">🎒 Ekwipunek (${(h.items||[]).length})</button>${(h.defeated||h.level>1)?`<button class="btn ghost" id="rpgReset" style="color:var(--bad)">↺ Nowa postać</button>`:""}</div>
+      <div class="sublabel">Wybierz wyprawę</div>
+      <div class="hlist">
+        ${banksList.map(n=>`<div class="hcard" data-advb="${n.id}"><div class="hbody"><h4>🏦 ${esc(n.note.title||"Bank")}</h4><div class="hmeta">${n.bank.questions.filter(x=>!x.skip).length} pytań</div></div><span class="hchev">⚔️</span></div>`).join("")}
+        ${state.sekcje.filter(sk=>sekStats(sk).total>=4).map(sk=>`<div class="hcard" data-advs="${sk.id}"><div class="hbody"><h4>📚 ${esc(sk.name)}</h4><div class="hmeta">${sekStats(sk).total} pytań (sekcja)</div></div><span class="hchev">⚔️</span></div>`).join("")}
+        ${!banksList.length&&!state.sekcje.filter(sk=>sekStats(sk).total>=4).length?`<div class="hempty">Brak banków pytań. Zbuduj bank w notatce, by wyruszyć na wyprawę.</div>`:""}
+      </div>
       <div class="haddwrap"></div>
     </div>`;
   content.querySelectorAll("[data-ht]").forEach(b=>b.onclick=()=>{ state.libTab=b.getAttribute("data-ht"); renderHome(); });
-  const go=document.getElementById("rpgGo"); if(go) go.onclick=()=>startAdventure();
-  const rs=document.getElementById("rpgReset"); if(rs) rs.onclick=()=>{ if(confirm("Rozpocząć od nowa nową postacią? Cały postęp RPG przepadnie.")){ state.hero=defaultHero(); saveHero(); renderRpgHome(); } };
+  content.querySelectorAll("[data-advb]").forEach(el=>el.onclick=()=>startAdventure(rpgPoolFromNotes([el.getAttribute("data-advb")])));
+  content.querySelectorAll("[data-advs]").forEach(el=>{ const sk=state.sekcje.find(x=>x.id===el.getAttribute("data-advs")); el.onclick=()=>startAdventure(rpgPoolFromNotes(sk.noteIds||[])); });
+  const sh=document.getElementById("rpgShop"); if(sh) sh.onclick=()=>renderShop();
+  const iv=document.getElementById("rpgInv"); if(iv) iv.onclick=()=>renderInventory();
+  const rs=document.getElementById("rpgReset"); if(rs) rs.onclick=()=>{ if(confirm("Rozpocząć od nowa? Cały postęp RPG przepadnie.")){ state.hero=defaultHero(); saveHero(); renderRpgHome(); } };
 }
-function startAdventure(){
-  const pool=rpgPool(); if(pool.length<4){ alert("Brak pytań — zbuduj najpierw bank."); return; }
-  const h=state.hero; if(h.hp<=0) h.hp=h.maxHp;
-  state.rpg={enemy:makeEnemy(h.enemyIdx,h.level),pool:rpgShuffle(pool),qi:0,combo:0,picked:null,revealed:false,floats:[]};
+function renderInventory(){
+  const h=state.hero;
+  content.innerHTML=`
+    <button class="backbtn" id="invBack">‹ Wstecz</button>
+    <div class="home"><h1 class="hello" style="font-size:26px">🎒 Ekwipunek</h1>
+    <div class="hellosub">🪙 ${h.coins} groszy · sprzedaj zbędne przedmioty kupcowi.</div>
+    <div class="hlist">${(h.items||[]).length?h.items.map(it=>`<div class="hcard"><div class="hbody"><h4 style="color:${it.col}">${it.ic} ${esc(it.nm)} <span style="font-size:11px;opacity:.8">(${it.rar})</span></h4><div class="hmeta">${itemLabel(it)} · wartość 🪙 ${it.sell}</div></div><button class="btn ghost" data-sell="${it.id}" style="color:var(--bad);font-size:12px;padding:6px 10px">Sprzedaj</button></div>`).join(""):`<div class="hempty">Pusty ekwipunek. Zdobywaj przedmioty w wyprawach.</div>`}</div>
+    <div class="haddwrap"></div></div>`;
+  document.getElementById("invBack").onclick=()=>renderRpgHome();
+  content.querySelectorAll("[data-sell]").forEach(b=>b.onclick=()=>{ const id=b.getAttribute("data-sell"); const it=h.items.find(x=>x.id===id); if(!it) return; h.coins+=it.sell; h.items=h.items.filter(x=>x.id!==id); if(h.hp>heroStats(h).maxHp) h.hp=heroStats(h).maxHp; saveHero(); renderInventory(); });
+}
+const SHOP=[
+  {key:"potion",ic:"🧪",name:"Eliksir życia",desc:"W walce leczy 50% maks. HP",cost:25},
+  {key:"fury",ic:"🔥",name:"Eliksir furii",desc:"Następny cios zadaje podwójne obrażenia",cost:35},
+  {key:"ward",ic:"🛡️",name:"Amulet niewrażliwości",desc:"Blokuje jeden atak potwora",cost:30}
+];
+function renderShop(){
+  const h=state.hero;
+  content.innerHTML=`
+    <button class="backbtn" id="shopBack">‹ Wstecz</button>
+    <div class="home"><h1 class="hello" style="font-size:26px">🛒 Kupiec</h1>
+    <div class="hellosub">🪙 ${h.coins} groszy. Zapas eliksirów przyda się w trudnej walce.</div>
+    <div class="hlist">${SHOP.map(it=>`<div class="hcard"><div class="hbody"><h4>${it.ic} ${esc(it.name)} <span style="font-size:11px;opacity:.7">(masz ${h.cons[it.key]||0})</span></h4><div class="hmeta">${esc(it.desc)} · 🪙 ${it.cost}</div></div><button class="btn ghost" data-buy="${it.key}" style="font-size:12px;padding:6px 12px" ${h.coins<it.cost?"disabled":""}>Kup</button></div>`).join("")}</div>
+    <div class="haddwrap"></div></div>`;
+  document.getElementById("shopBack").onclick=()=>renderRpgHome();
+  content.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>{ const k=b.getAttribute("data-buy"); const it=SHOP.find(x=>x.key===k); if(h.coins<it.cost) return; h.coins-=it.cost; h.cons[k]=(h.cons[k]||0)+1; saveHero(); renderShop(); });
+}
+function startAdventure(pool){
+  if(!pool||pool.length<4){ alert("Ta wyprawa nie ma dość pytań (min. 4)."); return; }
+  const h=state.hero; const st=heroStats(h); if(h.hp<=0) h.hp=st.maxHp;
+  state.rpg={enemy:makeEnemy(h.enemyIdx,h.level),pool:rpgShuffle(pool),qi:0,combo:0,picked:null,revealed:false,fury:false,ward:false};
   state.view="rpgbattle"; renderBattle();
 }
-function rpgLevelCheck(){
-  const h=state.hero; let leveled=false;
-  while(h.xp>=h.xpNext){ h.xp-=h.xpNext; h.level++; h.xpNext=Math.round(h.xpNext*1.35); h.maxHp+=15; h.atk+=2; h.def+=1; h.hp=h.maxHp; leveled=true; }
-  return leveled;
-}
+function rpgLevelCheck(){ const h=state.hero; let up=false; while(h.xp>=h.xpNext){ h.xp-=h.xpNext; h.level++; h.xpNext=Math.round(h.xpNext*1.35); h.baseHp+=15; h.baseAtk+=2; h.baseDef+=1; h.hp=heroStats(h).maxHp; up=true; } return up; }
 function renderBattle(){
   const h=state.hero, r=state.rpg; if(!r){ openRpg(); return; }
-  const en=r.enemy; const q=r.pool[r.qi % r.pool.length];
-  const enPct=Math.max(0,Math.round(100*en.hp/en.maxHp)), hpPct=Math.max(0,Math.round(100*h.hp/h.maxHp));
+  const st=heroStats(h); const en=r.enemy; const q=r.pool[r.qi % r.pool.length];
+  const enPct=Math.max(0,Math.round(100*en.hp/en.maxHp)), hpPct=Math.max(0,Math.round(100*h.hp/st.maxHp));
   content.innerHTML=`
     <div class="battle">
-      <button class="backbtn" id="bExit">‹ Przerwij wyprawę</button>
-      <div class="enemy ${r.enemyHurt?"hurt":""} ${r.enemyAttack?"attack":""}">
+      <div class="bbar"><button class="backbtn" id="bExit" style="margin:0">‹ Przerwij</button><span class="bmeta">${esc(heroRank(h.level))} · poz. ${h.level} · 🪙 ${h.coins}</span></div>
+      <div class="enemy ${r.enemyHurt?"hurt":""}">
         <div class="enname">${esc(en.name)}</div>
-        <div class="enemoji">${en.emoji}</div>
+        <div class="enemoji">${en.emoji}${r.floatEn?`<span class="float dmg">-${r.floatEn}</span>`:""}</div>
         <div class="hbar big"><div class="hbarfill en" style="width:${enPct}%"></div></div>
-        <div class="hbarlbl center">${Math.max(0,en.hp)}/${en.maxHp} HP</div>
-        ${r.floatEn?`<div class="float dmg">-${r.floatEn}</div>`:""}
+        <div class="hbarlbl center">${Math.max(0,en.hp)}/${en.maxHp}${r.ward?" · 🛡️ ochrona":""}${r.fury?" · 🔥 furia":""}</div>
       </div>
       <div class="battleq">
         <div class="qt">${esc(q.q)}</div>
@@ -1212,60 +1289,64 @@ function renderBattle(){
         ${r.revealed&&q.explanation?`<div class="exp">💡 ${esc(q.explanation)}</div>`:""}
       </div>
       <div class="hero ${r.heroHurt?"hurt":""}">
-        <div class="herorow"><span class="heroav sm">${heroAvatar(h.level)}</span><span class="heroname">${esc(h.name)} · poz. ${h.level}${r.combo>1?` · 🔥 combo x${r.combo}`:""}</span></div>
+        <div class="herorow"><span class="heroav sm">${heroAvatar(h.level)}</span><span>❤️ ${Math.max(0,h.hp)}/${st.maxHp}${r.combo>1?` · 🔥 x${r.combo}`:""}${r.floatHero?` <span class="float dmg sm">-${r.floatHero}</span>`:""}</span></div>
         <div class="hbar big"><div class="hbarfill hp" style="width:${hpPct}%"></div></div>
-        <div class="hbarlbl center">${Math.max(0,h.hp)}/${h.maxHp} HP${r.floatHero?` <span class="float dmg sm">-${r.floatHero}</span>`:""}</div>
       </div>
-      ${r.revealed?`<div class="row" style="justify-content:center"><button class="btn" id="bNext">${en.hp<=0?"🏆 Zwycięstwo →":(h.hp<=0?"💀 Dalej":"▶ Dalej")}</button></div>`:`<div class="muted small" style="text-align:center;margin-top:6px">Wybierz odpowiedź — trafna rani wroga, błędna rani Ciebie.</div>`}
+      <div class="consrow">${["potion","fury","ward"].map(k=>{ const it=SHOP.find(x=>x.key===k); const cnt=h.cons[k]||0; return `<button class="consbtn" data-use="${k}" ${cnt&&!r.revealed?"":"disabled"} title="${esc(it.desc)}">${it.ic} ${cnt}</button>`; }).join("")}</div>
+      ${r.revealed?`<div class="row" style="justify-content:center"><button class="btn" id="bNext">${en.hp<=0?"🏆 Zwycięstwo →":(h.hp<=0?"💀 Dalej":"▶ Dalej")}</button></div>`:`<div class="muted small" style="text-align:center">Trafna odpowiedź rani potwora, błędna rani Ciebie.</div>`}
     </div>`;
   document.getElementById("bExit").onclick=()=>{ saveHero(); openRpg(); };
   if(!r.revealed){ content.querySelectorAll(".opt").forEach(el=>el.onclick=()=>rpgAnswer(+el.getAttribute("data-oi"))); }
+  content.querySelectorAll("[data-use]").forEach(b=>b.onclick=()=>rpgUse(b.getAttribute("data-use")));
   const nx=document.getElementById("bNext"); if(nx) nx.onclick=()=>rpgNext();
+}
+function rpgUse(k){
+  const h=state.hero, r=state.rpg; if(r.revealed||!(h.cons[k]>0)) return;
+  if(k==="potion"){ const st=heroStats(h); h.hp=Math.min(st.maxHp,h.hp+Math.round(st.maxHp*0.5)); }
+  else if(k==="fury"){ r.fury=true; }
+  else if(k==="ward"){ r.ward=true; }
+  h.cons[k]--; saveHero(); renderBattle();
 }
 function rpgAnswer(oi){
   const h=state.hero, r=state.rpg; if(r.revealed) return;
-  const q=r.pool[r.qi % r.pool.length];
-  r.picked=oi; r.revealed=true; h.answered++;
-  r.floatEn=null; r.floatHero=null; r.enemyHurt=false; r.heroHurt=false;
+  const st=heroStats(h); const q=r.pool[r.qi % r.pool.length];
+  r.picked=oi; r.revealed=true; h.answered++; r.floatEn=null; r.floatHero=null; r.enemyHurt=false; r.heroHurt=false;
   if(oi===q.correct){
-    r.combo++; let dmg=h.atk+(r.combo-1)*2; const crit=Math.random()*100<h.crit; if(crit) dmg=Math.round(dmg*1.8);
+    r.combo++; let dmg=st.atk+(r.combo-1)*2; const crit=Math.random()*100<st.crit; if(crit) dmg=Math.round(dmg*1.8); if(r.fury){ dmg*=2; r.fury=false; }
     r.enemy.hp-=dmg; r.floatEn=dmg+(crit?" KRYT!":""); r.enemyHurt=true;
   } else {
-    r.combo=0; let dmg=Math.max(2,r.enemy.atk-h.def); h.hp-=dmg; r.floatHero=dmg; r.heroHurt=true; r.enemyAttack=true;
+    r.combo=0;
+    if(r.ward){ r.ward=false; r.floatHero=0; }
+    else { let dmg=Math.max(2,r.enemy.atk-st.def); h.hp-=dmg; r.floatHero=dmg; r.heroHurt=true; }
   }
   saveHero(); renderBattle();
 }
 function rpgNext(){
   const h=state.hero, r=state.rpg; const en=r.enemy;
   if(en.hp<=0){
-    const reward=12+h.enemyIdx*6; h.xp+=reward; h.defeated++; h.enemyIdx++;
-    const leveled=rpgLevelCheck(); h.hp=Math.min(h.maxHp,h.hp+Math.round(h.maxHp*0.25)); // leczenie po walce
+    const xpGain=12+h.enemyIdx*6, coinGain=4+Math.floor(Math.random()*5)+h.enemyIdx*2;
+    h.xp+=xpGain; h.coins+=coinGain; h.defeated++; h.enemyIdx++;
+    const leveled=rpgLevelCheck(); const st=heroStats(h); h.hp=Math.min(st.maxHp,h.hp+Math.round(st.maxHp*0.22));
     saveHero();
-    // czy czas na quest?
-    if(h.answered>=h.questAt){ h.questAt=h.answered+h.questStep; h.questStep++; saveHero(); renderQuest(reward,leveled); return; }
-    state.rpg.enemy=makeEnemy(h.enemyIdx,h.level); state.rpg.revealed=false; state.rpg.picked=null;
-    renderVictoryFlash(reward,leveled); return;
+    if(h.answered>=h.questAt){ h.questAt=h.answered+h.questStep; h.questStep++; saveHero(); renderQuest(leveled,coinGain); return; }
+    r.enemy=makeEnemy(h.enemyIdx,h.level); r.revealed=false; r.picked=null; renderBattle(); return;
   }
   if(h.hp<=0){ renderDefeat(); return; }
-  r.qi++; r.revealed=false; r.picked=null; r.enemyAttack=false; renderBattle();
+  r.qi++; r.revealed=false; r.picked=null; renderBattle();
 }
-function renderVictoryFlash(reward,leveled){
-  const r=state.rpg; r.revealed=false; r.picked=null; r.enemyAttack=false; r.combo=r.combo; renderBattle();
-}
-function renderQuest(reward,leveled){
-  const choices=rpgShuffle(RPG_ITEMS).slice(0,3);
+function renderQuest(leveled,coinGain){
+  const h=state.hero; const choices=[genItem(h.level),genItem(h.level),genItem(h.level)];
   content.innerHTML=`
     <div class="qsetup rpgquest">
       <div class="qbadge big">📜</div>
-      <h2 class="qtitle">Zlecenie wykonane!</h2>
-      <p class="qsub">Pokonałeś dość wrogów, by zdobyć łup.${leveled?" <b>Awans na nowy poziom!</b>":""} Wybierz jedną nagrodę:</p>
-      <div class="questgrid">${choices.map((it,i)=>`<button class="questcard" data-qi="${i}"><div class="questic">${it.ic}</div><div class="questnm">${esc(it.name)}</div><div class="questds">${esc(it.desc)}</div></button>`).join("")}</div>
+      <h2 class="qtitle">Łup z wyprawy!</h2>
+      <p class="qsub">Zdobyłeś 🪙 ${coinGain} groszy.${leveled?` <b>Awans: ${esc(heroRank(h.level))}!</b>`:""} Wybierz jeden przedmiot:</p>
+      <div class="questgrid">${choices.map((it,i)=>`<button class="questcard" data-qi="${i}" style="border-color:${it.col}"><div class="questic">${it.ic}</div><div class="questnm" style="color:${it.col}">${esc(it.nm)}</div><div class="questrar" style="color:${it.col}">${it.rar}</div><div class="questds">${itemLabel(it)}</div></button>`).join("")}</div>
+      <div class="muted small" style="margin-top:10px">Niewybrane przedmioty przepadają.</div>
     </div>`;
   content.querySelectorAll("[data-qi]").forEach(b=>b.onclick=()=>{
-    const it=choices[+b.getAttribute("data-qi")]; const h=state.hero;
-    it.apply(h); h.items.push({ic:it.ic,name:it.name,desc:it.desc}); saveHero();
-    state.rpg.enemy=makeEnemy(h.enemyIdx,h.level); state.rpg.revealed=false; state.rpg.picked=null; state.rpg.combo=0;
-    state.view="rpgbattle"; renderBattle();
+    const it=choices[+b.getAttribute("data-qi")]; h.items=h.items||[]; h.items.push(it); saveHero();
+    const r=state.rpg; r.enemy=makeEnemy(h.enemyIdx,h.level); r.revealed=false; r.picked=null; r.combo=0; state.view="rpgbattle"; renderBattle();
   });
 }
 function renderDefeat(){
@@ -1273,12 +1354,12 @@ function renderDefeat(){
   content.innerHTML=`
     <div class="qsetup">
       <div class="qbadge big">💀</div>
-      <h2 class="qtitle">Pokonano Cię…</h2>
-      <p class="qsub">Twój bohater pada, ale wstaje, by walczyć dalej. Postęp i przedmioty zostają — odzyskujesz pełne zdrowie.</p>
-      <div class="row" style="justify-content:center"><button class="btn" id="dRevive">⚔️ Walcz dalej</button><button class="btn ghost" id="dHome">↩ Wróć</button></div>
+      <h2 class="qtitle">Bestia Cię powaliła…</h2>
+      <p class="qsub">Budzisz się ranny, ale żywy. Postęp, monety i przedmioty zostają — odzyskujesz pełnię sił.</p>
+      <div class="row" style="justify-content:center"><button class="btn" id="dRevive">⚔️ Walcz dalej</button><button class="btn ghost" id="dHome">↩ Do obozu</button></div>
     </div>`;
-  document.getElementById("dRevive").onclick=()=>{ h.hp=h.maxHp; saveHero(); state.rpg.enemy=makeEnemy(h.enemyIdx,h.level); state.rpg.revealed=false; state.rpg.picked=null; state.rpg.combo=0; state.view="rpgbattle"; renderBattle(); };
-  document.getElementById("dHome").onclick=()=>{ h.hp=h.maxHp; saveHero(); openRpg(); };
+  document.getElementById("dRevive").onclick=()=>{ h.hp=heroStats(h).maxHp; saveHero(); const r=state.rpg; r.enemy=makeEnemy(h.enemyIdx,h.level); r.revealed=false; r.picked=null; r.combo=0; state.view="rpgbattle"; renderBattle(); };
+  document.getElementById("dHome").onclick=()=>{ h.hp=heroStats(h).maxHp; saveHero(); openRpg(); };
 }
 
 
@@ -1296,7 +1377,7 @@ function openSekcja(id){
       <h1 class="hello" style="font-size:clamp(24px,6vw,32px)">${esc(sk.name)} <button class="titledit" id="skRename" title="Zmień nazwę">✏️</button></h1>
       <div class="hellosub">${st.total} ${plural(st.total,"pytanie","pytania","pytań")} łącznie · 🎯 opanowano ${st.mastered}/${st.total} (${st.pct}%)</div>
       <div class="msbar" style="max-width:420px;margin:0 0 16px"><div class="msfill" style="width:${st.pct}%"></div></div>
-      <div class="row" style="margin:0 0 20px"><button class="btn" id="skTrain" ${st.total?"":"disabled"}>🎯 Ucz się (${st.total} pyt.)</button><button class="btn ghost" id="skDelBtn" style="color:var(--bad)">🗑 Usuń sekcję</button></div>
+      <div class="row" style="margin:0 0 20px"><button class="btn" id="skTrain" ${st.total?"":"disabled"}>🎯 Ucz się (${st.total} pyt.)</button><button class="btn ghost" id="skRpg" ${st.total>=4?"":"disabled"}>⚔️ Graj RPG</button><button class="btn ghost" id="skDelBtn" style="color:var(--bad)">🗑 Usuń sekcję</button></div>
       <div class="sublabel">Banki w sekcji</div>
       <div class="hlist" style="margin-bottom:18px">${memberCards}</div>
       <div class="sublabel">Dodaj banki do sekcji</div>
@@ -1306,6 +1387,7 @@ function openSekcja(id){
   document.getElementById("skBack").onclick=()=>{ state.libTab="sekcje"; renderHome(); };
   document.getElementById("skDelBtn").onclick=()=>{ if(confirm("Usunąć tę sekcję? (notatki i banki pozostaną)")){ state.sekcje=state.sekcje.filter(x=>x.id!==id); saveSekcje(); state.libTab="sekcje"; renderHome(); } };
   document.getElementById("skTrain").onclick=()=>startSekcjaMastery(sk);
+  const _skrpg=document.getElementById("skRpg"); if(_skrpg) _skrpg.onclick=()=>startAdventure(rpgPoolFromNotes(sk.noteIds||[]));
   document.getElementById("skRename").onclick=()=>{ const v=(prompt("Nowa nazwa sekcji:",sk.name)||"").trim(); if(v){ sk.name=v; saveSekcje(); openSekcja(id); } };
   content.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ sk.noteIds=sk.noteIds.filter(x=>x!==b.getAttribute("data-rm")); saveSekcje(); openSekcja(id); });
   const addBtn=document.getElementById("skAdd"); if(addBtn) addBtn.onclick=()=>{ const ids=[...content.querySelectorAll(".addbox input:checked")].map(c=>c.value); if(!ids.length) return; sk.noteIds=[...(sk.noteIds||[]),...ids]; saveSekcje(); openSekcja(id); };
@@ -1504,13 +1586,14 @@ function renderBankPane(){
       <p class="qsub">${b?`${bs.total} ${plural(bs.total,"pytanie","pytania","pytań")} · opanowano <b>${bs.mastered}</b> (${bs.pct}%)${bs.skipped?` · ${bs.skipped} pominięto`:""}`:"Pytania pokrywające 100% materiału tej notatki (zwykle 40-70)."}</p>
       ${b?`<div class="msbar" style="max-width:340px;margin:0 auto 18px"><div class="msfill" style="width:${bs.pct}%"></div></div>`:""}
       <div class="row" style="justify-content:center">
-        ${b?`<button class="btn" id="msStart">▶ Ćwicz</button><button class="btn ghost" id="bankReset">↺ Resetuj postęp</button><button class="btn ghost" id="bankRegen">✨ Zbuduj od nowa</button><button class="btn ghost" id="bankDel" style="color:var(--bad)">🗑 Usuń bank</button>`:`<button class="btn" id="bankGen">✨ Zbuduj bank pytań</button>`}
+        ${b?`<button class="btn" id="msStart">▶ Ćwicz</button><button class="btn ghost" id="bankRpg">⚔️ Graj RPG</button><button class="btn ghost" id="bankReset">↺ Resetuj postęp</button><button class="btn ghost" id="bankRegen">✨ Zbuduj od nowa</button><button class="btn ghost" id="bankDel" style="color:var(--bad)">🗑 Usuń bank</button>`:`<button class="btn" id="bankGen">✨ Zbuduj bank pytań</button>`}
       </div>
       <p class="qopthint" style="max-width:430px;margin:16px auto 0">${b?"Pytanie uznajemy za opanowane po 1 poprawnej odpowiedzi, a błędne wracają w kolejnych rundach. Pytania zbędne możesz trwale pominąć przyciskiem podczas nauki. Budowa od nowa zastąpi bank wraz z postępem.":"Aplikacja przejdzie notatkę sekcja po sekcji i ułoży pytania sprawdzające każdy fakt — tak, by dało się opanować 100% materiału."}</p>
       ${!aiAvailable()?`<div class="banner warn" style="margin-top:14px;text-align:left">⚠️ Aby budować bank, wpisz klucz API w <b>⚙ Ustawienia AI</b>.</div>`:""}
     </div>`;
   const bg=document.getElementById("bankGen"); if(bg) bg.onclick=()=>generateBank(entry);
   const msb=document.getElementById("msStart"); if(msb) msb.onclick=()=>startMastery(entry);
+  const brp=document.getElementById("bankRpg"); if(brp) brp.onclick=()=>startAdventure(rpgPoolFromNotes([entry.id]));
   const br=document.getElementById("bankReset"); if(br) br.onclick=()=>{ if(confirm("Wyzerować postęp banku pytań?")){ entry.bank.questions.forEach(x=>{x.streak=0;x.wrong=0;x.seen=0;}); entry.updated=Date.now(); save(); syncSoon(); renderBankPane(); } };
   const brg=document.getElementById("bankRegen"); if(brg) brg.onclick=()=>{ if(confirm("Zbudować bank od nowa? Obecne pytania i postęp zostaną zastąpione.")) generateBank(entry); };
   const bdl=document.getElementById("bankDel"); if(bdl) bdl.onclick=()=>{ if(confirm("Usunąć bank pytań tej notatki? (notatka zostanie)")){ entry.bank=null; entry.updated=Date.now(); save(); syncSoon(); renderBankPane(); } };
