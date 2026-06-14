@@ -531,6 +531,20 @@ textarea,.titlefield,.modelsel{background:#241910;color:var(--ink);border:1px so
 .opt.sel .mk{background:var(--accent);border-color:var(--accent)}
 .opt.correct{background:#26371d;border-color:var(--ok)} .opt.correct .mk{background:var(--ok);border-color:var(--ok)}
 .opt.wrong{background:#3c211d;border-color:var(--bad)} .opt.wrong .mk{background:var(--bad);border-color:var(--bad)}
+
+/* === poprawki po feedbacku (kontrast napisów, walka, profil) === */
+.sublabel{color:var(--ink);background:linear-gradient(transparent 60%, rgba(210,162,58,.26) 60%)}
+.sec .sublabel{color:#352816;background:linear-gradient(transparent 60%, rgba(200,150,40,.32) 60%)}
+.bx-port .pv,.bx-port.en .pv{background:#241910;border-color:#8a6a3a}
+.heroav{width:96px;height:96px}
+.heroav .ravatar{height:96px}
+.ravatar,.heroav .ravatar,.treeav .ravatar,.bx-port .pv .ravatar,.bx-scene .ravatar,.cmbemoji .ravatar{image-rendering:pixelated;image-rendering:crisp-edges}
+
+/* === wariant "Lekko": spokojniejsza walka pod naukę === */
+.bx-scene{height:96px}
+.bx-scene .ravatar{height:72px}
+.bx-scene .side{bottom:4px}
+.bx-day{font-size:13px;opacity:.85}
 </style>
 
 <div class="app">
@@ -649,7 +663,7 @@ textarea,.titlefield,.modelsel{background:#241910;color:var(--ink);border:1px so
     </div>
     <div id="authLoggedIn" class="hidden">
       <p class="cfghint">Zalogowano jako <b id="authWho"></b>. Notatki synchronizują się z chmurą automatycznie.</p>
-      <div class="row"><button class="btn ghost" id="authLogout">Wyloguj</button><button class="btn ghost" id="authClose2">Zamknij</button></div>
+      <div class="row"><button class="btn" id="authSync">🔄 Synchronizuj teraz</button><button class="btn ghost" id="authLogout">Wyloguj</button><button class="btn ghost" id="authClose2">Zamknij</button></div>
     </div>
     <div id="authStatus" style="font-size:13px;margin-top:10px"></div>
   </div>
@@ -1105,10 +1119,11 @@ async function supaSync(){
   if(appliedDel) save();
   saveDeleted();
   const toPush=state.notes.filter(n=>{ if(n.id==="demo-neuro-1") return false; const lu=n.updated||n.created||0; if((state.deleted[n.id]||0)>=lu) return false; return !(n.id in rmap)||lu>rmap[n.id]; });
-  for(let i=0;i<toPush.length;i+=4){
-    const chunk=toPush.slice(i,i+4).map(n=>({id:n.id,data:n,updated:n.updated||n.created||0}));
-    await supaRest("notes",{method:"POST",headers:{"prefer":"resolution=merge-duplicates"},body:JSON.stringify(chunk)});
-    pushed+=chunk.length;
+  const failed=[];
+  for(const n of toPush){
+    const body=JSON.stringify([{id:n.id,data:n,updated:n.updated||n.created||0}]);
+    try{ await supaRest("notes",{method:"POST",headers:{"prefer":"resolution=merge-duplicates"},body}); pushed++; }
+    catch(e){ failed.push({title:(n.note&&n.note.title)||n.id,kb:Math.round(body.length/1024),err:e.message}); }
   }
   // --- Sekcje jako osobny rekord ---
   let sekChanged=false;
@@ -1126,7 +1141,7 @@ async function supaSync(){
   }
   if(pulled||appliedDel){ state.notes.sort((a,b)=>(b.created||0)-(a.created||0)); save(); if(state.view==="home") renderHome(); else renderLib(); }
   else if(sekChanged && state.view==="home") renderHome();
-  return {pulled:pulled,pushed:pushed};
+  return {pulled:pulled,pushed:pushed,failed:failed};
 }
 async function deleteRemote(id){
   if(loggedIn()){ try{ await supaRest("notes?id=eq."+encodeURIComponent(id),{method:"DELETE"}); }catch(e){} }
@@ -1138,9 +1153,14 @@ function setSyncMsg(t){ const st=document.getElementById("authStatus"); if(st&&t
 function syncSoon(){ if(!loggedIn()) return; clearTimeout(syncTimer); syncTimer=setTimeout(()=>syncNow(false),4000); }
 async function syncNow(manual){
   if(syncBusy||!loggedIn()) return;
-  syncBusy=true;
-  try{ await supaSync(); }
-  catch(e){ if(manual) alert("Synchronizacja nieudana: "+e.message); }
+  syncBusy=true; setSyncMsg("⏳ Synchronizacja…");
+  try{
+    const r=await supaSync();
+    let msg='✔ '+new Date().toLocaleTimeString("pl-PL").slice(0,5)+' · pobrano '+r.pulled+', wysłano '+r.pushed;
+    if(r.failed&&r.failed.length){ msg+=' · ⚠️ nie udało się wysłać '+r.failed.length+': '+r.failed.map(f=>f.title+" ("+f.kb+" KB — "+f.err+")").join("; "); }
+    setSyncMsg(msg);
+  }
+  catch(e){ setSyncMsg("⚠️ Błąd synchronizacji: "+e.message); if(manual) alert("Synchronizacja nieudana: "+e.message); }
   syncBusy=false;
 }
 
@@ -1660,7 +1680,7 @@ function renderBattle(){
           <div class="bx-day pix">⚔ ${h.enemyIdx+1}</div>
           <div class="side l ${r.heroHurt?"hurt":""}">${heroAvatar(h.level)}${r.floatHero?`<span class="float dmg">-${r.floatHero}</span>`:""}</div>
           <div class="side r ${r.enemyHurt?"hurt":""} ${isNem?"nemesis":""}">${enemyArt(en)}${r.floatEn?`<span class="float dmg">-${r.floatEn}</span>`:""}</div>
-          ${r.combo>1?`<div class="bx-combo pix">🔥 Combo x${r.combo}</div>`:""}
+          ${r.revealed&&r.combo>1?`<div class="bx-combo pix">🔥 Combo x${r.combo}</div>`:""}
           ${r.revealed?`<div class="bx-fb pix ${r.picked===q.correct?"ok":"bad"}">${r.picked===q.correct?"Dobra odpowiedź! Atak!":"Pudło! Cios!"}</div>`:""}
         </div>
         <div class="bx-cov"><div style="width:${(()=>{ const tot=r.pool.length, mas=r.pool.filter(qq=>(qq.streak||0)>=1).length; return tot?Math.round(100*mas/tot):0; })()}%"></div></div>
@@ -2344,6 +2364,7 @@ function updateAuthUi(){
   window._openAuth=openA;
   document.getElementById("authClose").onclick=()=>m.classList.add("hidden");
   document.getElementById("authClose2").onclick=()=>m.classList.add("hidden");
+  { const sb=document.getElementById("authSync"); if(sb) sb.onclick=()=>syncNow(true); }
   m.addEventListener("click",e=>{ if(e.target===m) m.classList.add("hidden"); });
   document.getElementById("authLogin").onclick=async()=>{
     st().textContent="⏳ Loguję…";
