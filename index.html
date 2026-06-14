@@ -314,6 +314,11 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .float.sm{position:static;display:inline;font-size:14px;animation:none}
 .affix{display:inline-block;font-size:10px;font-weight:700;background:#3a2030;color:#ffb3c0;border-radius:6px;padding:1px 6px;vertical-align:middle}
 .covbar{margin:0 0 8px}
+.srcard{max-width:430px;margin:0 auto 18px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.04)}
+.srtop{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.srlead{font-weight:700}
+.srexam{font-size:13px;opacity:.85}
+.srdue{font-size:14px;opacity:.9}
 .covlbl{font-size:11.5px;color:var(--muted);margin-bottom:3px;text-align:center}
 @keyframes floatup{from{opacity:1;top:40px}to{opacity:0;top:0}}
 .battleq{background:linear-gradient(135deg,rgba(255,255,255,.78),rgba(255,255,255,.55));border:1px solid rgba(255,255,255,.6);border-radius:14px;padding:13px 15px;margin:0 0 10px}
@@ -1436,20 +1441,24 @@ const SHOP=[
 function shopTier(lvl){ if(lvl<=4) return {t:"Paser w zaułku",d:"Handel w błocie. Kradzione resztki i zardzewiały oręż."}; if(lvl<=8) return {t:"Zbrojmistrz w koszarach",d:"Solidny towar na drewnianych stojakach, sztywne ceny."}; if(lvl<=12) return {t:"Kupiec gildyjny",d:"Zdobiony kantor, lśniące pancerze i artefakty zza morza."}; return {t:"Królewski skarbnik",d:"Relikwie i mityczny oręż w hołdzie dla władcy."}; }
 function rollShopStock(){ const h=state.hero; const stock=[]; for(let k=0;k<3;k++) stock.push(genItem(Math.max(1,h.level-1+Math.floor(Math.random()*2)))); state.shopStock=stock; }
 function itemPrice(it){ const r=RARITY.find(x=>x.key===it.rar)||RARITY[0]; return Math.round(r.sell*2.6*(1+(state.hero.level||1)*0.05)); }
+const CAMP_EVERY=6;
+function enterCamp(){ state.hero.sinceCamp=0; state.campShop=true; rollShopStock(); state.view="rpgbattle"; renderShop(); }
 function renderShop(){
-  const h=state.hero; const tier=shopTier(h.level); if(!state.shopStock) rollShopStock();
-  const st=heroStats(h); const missing=st.maxHp-h.hp; const healCost=Math.max(0,Math.round(missing*0.6));
+  const h=state.hero; const tier=shopTier(h.level); if(!state.shopStock) rollShopStock(); const camp=!!state.campShop;
+  const st=heroStats(h); const missing=st.maxHp-h.hp; const healCost=Math.max(0,Math.round(missing*0.6)); const halfHp=Math.min(missing,Math.round(st.maxHp*0.5)); const halfCost=Math.max(0,Math.round(halfHp*0.6)); const hpPct=Math.round(100*h.hp/st.maxHp);
   const consHtml=SHOP.map(it=>`<div class="hcard"><div class="hbody"><h4>${it.ic} ${esc(it.name)} <span style="font-size:11px;opacity:.7">(masz ${h.cons[it.key]||0})</span></h4><div class="hmeta">${esc(it.desc)} · 🪙 ${it.cost}</div></div><button class="btn ghost" data-buy="${it.key}" style="font-size:12px;padding:6px 12px" ${h.coins<it.cost?"disabled":""}>Kup</button></div>`).join("");
   const goodsHtml=state.shopStock.map((it,ix)=>`<div class="hcard${glowCls(it)}" style="border:4px solid ${it.col}"><div class="hbody"><h4>${it.ic} ${esc(it.nm)} <span class="rarlabel" style="color:${it.col}">${it.rar}</span></h4><div class="hmeta">${itemLabel(it)}</div></div><button class="btn ghost" data-buygood="${ix}" style="font-size:12px;padding:6px 12px" ${h.coins<itemPrice(it)?"disabled":""}>🪙 ${itemPrice(it)}</button></div>`).join("");
   // kowal: grupy po rzadkości
   const byRar={}; (h.items||[]).filter(it=>!isEquipped(h,it.id)).forEach(it=>{ (byRar[it.rar]=byRar[it.rar]||[]).push(it); });
   const mergeable=Object.keys(byRar).filter(r=>byRar[r].length>=3 && r!=="unikat");
   content.innerHTML=`
-    <button class="backbtn" id="shopBack">‹ Wstecz</button>
-    <div class="home"><h1 class="hello" style="font-size:24px">🛒 ${esc(tier.t)}</h1>
-    <div class="hellosub">${esc(tier.d)} · 🪙 ${h.coins} groszy</div>
-    <div class="sublabel">Cyrulik — leczenie</div>
-    <div class="hlist"><div class="hcard"><div class="hbody"><h4>❤️ Pełne uzdrowienie</h4><div class="hmeta">${missing>0?`Brakuje ${missing} HP · koszt 🪙 ${healCost}`:"Jesteś w pełni zdrowy"}</div></div><button class="btn ghost" id="healBtn" style="font-size:12px;padding:6px 12px" ${(missing<=0||h.coins<healCost)?"disabled":""}>Ulecz</button></div></div>
+    <button class="backbtn" id="shopBack">${camp?"⚔️ Rusz w dalszą drogę":"‹ Wstecz"}</button>
+    <div class="home"><h1 class="hello" style="font-size:24px">${camp?"🔥 Ognisko":"🛒 "+esc(tier.t)}</h1>
+    <div class="hellosub">${camp?(()=>{ const r=state.rpg, tot=r?r.pool.length:0, mas=r?r.pool.filter(qq=>(qq.streak||0)>=1).length:0, pct=tot?Math.round(100*mas/tot):0; return `Bezpieczny przystanek. ❤️ ${Math.max(0,h.hp)}/${st.maxHp} HP (${hpPct}%) · opanowano ${mas}/${tot} pytań (${pct}%). Lecz się, dokup oręż u kupca i przekuwaj łup u kowala — potem ruszaj dalej.`; })():esc(tier.d)} · 🪙 ${h.coins} groszy</div>${camp?'<div class="muted small" style="margin:-4px 0 8px;text-align:center">Sklep jest dostępny tylko tutaj — w walce musisz przetrwać o własnych siłach.</div>':""}
+    <div class="sublabel">Cyrulik — odpoczynek</div>
+    <div class="hlist">
+    <div class="hcard"><div class="hbody"><h4>💛 Opatrunek (+50% HP)</h4><div class="hmeta">${missing>0?`Przywraca ${halfHp} HP · koszt 🪙 ${halfCost}`:"Jesteś w pełni zdrowy"}</div></div><button class="btn ghost" id="healHalf" style="font-size:12px;padding:6px 12px" ${(missing<=0||h.coins<halfCost)?"disabled":""}>Opatrz</button></div>
+    <div class="hcard"><div class="hbody"><h4>❤️ Pełne uzdrowienie</h4><div class="hmeta">${missing>0?`Brakuje ${missing} HP · koszt 🪙 ${healCost}`:"Jesteś w pełni zdrowy"}</div></div><button class="btn ghost" id="healBtn" style="font-size:12px;padding:6px 12px" ${(missing<=0||h.coins<healCost)?"disabled":""}>Ulecz</button></div></div>
     <div class="sublabel">Eliksiry i koła ratunkowe</div>
     <div class="hlist">${consHtml}</div>
     <div class="sublabel">Towary kupca <button class="btn ghost" id="restock" style="font-size:11px;padding:4px 9px;margin-left:6px">↻ Odśwież (🪙 15)</button></div>
@@ -1459,10 +1468,11 @@ function renderShop(){
     <div class="sublabel">Kowal — przetapianie</div>
     <div class="hlist">${mergeable.length?mergeable.map(r=>{ const col=(RARITY.find(x=>x.key===r)||{}).col; return `<div class="hcard"><div class="hbody"><h4 style="color:${col}">Przetop 3× <span class="rarlabel" style="color:${col}">${r}</span></h4><div class="hmeta">Z 3 przedmiotów tej rzadkości wykuj 1 wyższej · 🪙 20</div></div><button class="btn ghost" data-merge="${r}" style="font-size:12px;padding:6px 12px" ${h.coins<20?"disabled":""}>Przetop</button></div>`; }).join(""):`<div class="hempty">Zbierz 3 przedmioty tej samej rzadkości (w plecaku), by je przetopić w lepszy.</div>`}</div>
     <div class="haddwrap"></div></div>`;
-  document.getElementById("shopBack").onclick=()=>{ if(state.rpg) renderBattle(); else renderRpgHome(); };
+  document.getElementById("shopBack").onclick=()=>{ if(camp){ state.campShop=false; renderBattle(); } else if(state.rpg){ renderBattle(); } else { renderRpgHome(); } };
   content.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>{ const it=SHOP.find(x=>x.key===b.getAttribute("data-buy")); if(h.coins<it.cost) return; h.coins-=it.cost; h.cons[it.key]=(h.cons[it.key]||0)+1; saveHero(); renderShop(); });
   content.querySelectorAll("[data-buygood]").forEach(b=>b.onclick=()=>{ const ix=+b.getAttribute("data-buygood"); const it=state.shopStock[ix]; if(!it||h.coins<itemPrice(it)) return; h.coins-=itemPrice(it); h.items.push(it); autoEquip(h,it); state.shopStock.splice(ix,1); saveHero(); renderShop(); });
   document.getElementById("healBtn").onclick=()=>{ if(missing<=0||h.coins<healCost) return; h.coins-=healCost; h.hp=st.maxHp; saveHero(); renderShop(); };
+  { const hb=document.getElementById("healHalf"); if(hb) hb.onclick=()=>{ if(missing<=0||h.coins<halfCost) return; h.coins-=halfCost; h.hp=Math.min(st.maxHp,h.hp+halfHp); saveHero(); renderShop(); }; }
   document.getElementById("restock").onclick=()=>{ if(h.coins<15) return; h.coins-=15; rollShopStock(); saveHero(); renderShop(); };
   document.getElementById("gacha").onclick=()=>{ if(h.coins<120) return; h.coins-=120; const it=genItem(h.level+1); h.items.push(it); autoEquip(h,it); saveHero(); alert("Ze skrzyni wypadło: "+it.ic+" "+it.nm+" ["+it.rar+"]!"); renderShop(); };
   content.querySelectorAll("[data-merge]").forEach(b=>b.onclick=()=>{ const r=b.getAttribute("data-merge"); if(h.coins<20) return; const pool=(h.items||[]).filter(it=>!isEquipped(h,it.id)&&it.rar===r).slice(0,3); if(pool.length<3) return; h.coins-=20; const ids=pool.map(x=>x.id); h.items=h.items.filter(x=>ids.indexOf(x.id)<0); const nextIdx=Math.min(5,RARITY.findIndex(x=>x.key===r)+1); let it; do{ it=genItem(h.level); }while(RARITY.findIndex(x=>x.key===it.rar)<nextIdx && Math.random()<0.9); // dąż do wyższej rzadkości
@@ -1473,14 +1483,14 @@ function startRun(){ const h=state.hero;
   h.equipped={weapon:null,armor:null,acc1:null,acc2:null,relic:(h.relic?h.items[0].id:null)};
   h.coins = 10 + ((h.meta&&h.meta.gold)||0);
   h.cons={potion:0,fury:0,ward:0};
-  h.enemyIdx=0; h.questAt=8; h.questStep=3;
+  h.enemyIdx=0; h.questAt=8; h.questStep=3; h.sinceCamp=0;
   h.hp=heroStats(h).maxHp;
 }
 function endRun(){ const h=state.hero;
   const rid=h.equipped&&h.equipped.relic; const ri=rid?(h.items||[]).find(x=>x.id===rid):null;
   h.relic = ri ? JSON.parse(JSON.stringify(ri)) : null;
   h.items=[]; h.coins=0; h.cons={potion:0,fury:0,ward:0}; h.equipped={weapon:null,armor:null,acc1:null,acc2:null,relic:null};
-  h.hp=heroStats(h).maxHp; state.rpg=null; saveHero();
+  h.hp=heroStats(h).maxHp; state.rpg=null; state.campShop=false; saveHero();
 }
 function startAdventure(pool){
   if(!pool||pool.length<4){ alert("Ta wyprawa nie ma dość pytań (min. 4)."); return; }
@@ -1496,7 +1506,7 @@ function renderBattle(){
   const enPct=Math.max(0,Math.round(100*en.hp/en.maxHp)), hpPct=Math.max(0,Math.round(100*h.hp/st.maxHp));
   content.innerHTML=`
     <div class="battle">
-      <div class="bbar"><button class="backbtn" id="bExit" style="margin:0">‹ Przerwij</button><span class="bmeta">${esc(rankName(h))} · 🪙 ${h.coins} <button class="tb-btn" id="bInv" style="padding:3px 8px;margin-left:4px">🎒</button> <button class="tb-btn" id="bShop" style="padding:3px 8px">🛒</button></span></div>
+      <div class="bbar"><button class="backbtn" id="bExit" style="margin:0">‹ Przerwij</button><span class="bmeta">${esc(rankName(h))} · 🪙 ${h.coins} <button class="tb-btn" id="bInv" style="padding:3px 8px;margin-left:4px">🎒</button></span></div>
       ${(()=>{ const tot=r.pool.length, mas=r.pool.filter(q=>(q.streak||0)>=1).length, pct=tot?Math.round(100*mas/tot):0; return `<div class="covbar"><div class="covlbl">📚 Opanowano ${mas}/${tot} pytań banku (${pct}%)</div><div class="msbar"><div class="msfill" style="width:${pct}%"></div></div></div>`; })()}
       <div class="arena">
         <div class="combatant hero ${r.heroHurt?"hurt":""}">
@@ -1523,7 +1533,6 @@ function renderBattle(){
     </div>`;
   document.getElementById("bExit").onclick=()=>{ if(confirm("Porzucić wyprawę? Stracisz zebrany łup i złoto (Relikwia, XP i Diamenty zostają).")){ endRun(); openRpg(); } };
   document.getElementById("bInv").onclick=()=>renderInventory();
-  document.getElementById("bShop").onclick=()=>renderShop();
   if(!r.revealed){ content.querySelectorAll(".opt").forEach(el=>el.onclick=()=>rpgAnswer(+el.getAttribute("data-oi"))); }
   content.querySelectorAll("[data-use]").forEach(b=>b.onclick=()=>rpgUse(b.getAttribute("data-use")));
   const nx=document.getElementById("bNext"); if(nx) nx.onclick=()=>rpgNext();
@@ -1545,7 +1554,7 @@ function rpgAnswer(oi){
     const ef=heroEff(h); if(ef.bleed){ r.enemy.hp-=ef.bleed; } if(ef.comboheal&&r.combo>=3){ h.hp=Math.min(st.maxHp,h.hp+ef.comboheal); }
     r.enemy.hp-=dmg; r.enemyHurt=true; r.floatEn=dmg+(crit?" KRYT!":"")+(ef.bleed?" +"+ef.bleed:"");
     if(r.enemy.affix==="thorny"){ const t=Math.max(1,Math.round(r.enemy.atk*0.25)); h.hp-=t; r.floatHero=t; r.heroHurt=true; }
-    if((q.streak||0)<1){ q.streak=1; q.seen=(q.seen||0)+1; if(h.level<15){ h.xp+=10; rpgLevelCheck(); } r._learned=(r._learned||0)+1; try{ save(); syncSoon(); }catch(e){} } // XP tylko z nowych pytań
+    if((q.streak||0)<1){ q.streak=1; q.seen=(q.seen||0)+1; if(h.level<15){ h.xp+=10; rpgLevelCheck(); } r._learned=(r._learned||0)+1; } srUpdate(q,true,null); try{ save(); syncSoon(); }catch(e){} // XP tylko z nowych pytań
   } else {
     r.combo=0; const ef=heroEff(h);
     if(r.ward){ r.ward=false; r.floatHero="0"; }
@@ -1566,8 +1575,10 @@ function rpgNext(){
       let it,guard=0; do{ it=genItem(h.level+1); guard++; }while(RARITY.findIndex(x=>x.key===it.rar)<2 && guard<12);
       h.items.push(it); autoEquip(h,it); saveHero(); renderBossReward(it,coinGain,dia); return; }
     h.coins+=coinGain; saveHero();
+    const nb=(h.enemyIdx%5===0); r.enemy=makeEnemy(h.enemyIdx,h.level,nb); r.revealed=false; r.picked=null; r.floatEn=null; r.floatHero=null; r.enemyHurt=false; r.heroHurt=false;
+    h.sinceCamp=(h.sinceCamp||0)+1; saveHero(); if(h.sinceCamp>=CAMP_EVERY){ enterCamp(); return; }
     if(h.answered>=h.questAt){ h.questAt=h.answered+h.questStep; h.questStep++; saveHero(); renderQuest(consumeLvlFlash(),coinGain); return; }
-    const nb=(h.enemyIdx%5===0); r.enemy=makeEnemy(h.enemyIdx,h.level,nb); r.revealed=false; r.picked=null; r.floatEn=null; r.floatHero=null; r.enemyHurt=false; r.heroHurt=false; renderBattle(); return;
+    renderBattle(); return;
   }
   if(h.hp<=0){ renderDefeat(); return; }
   r.qi++; r.revealed=false; r.picked=null; r.floatEn=null; r.floatHero=null; r.enemyHurt=false; r.heroHurt=false; renderBattle();
@@ -1581,7 +1592,7 @@ function renderBossReward(it,coin,dia){
       <div class="questgrid" style="grid-template-columns:1fr;max-width:300px"><div class="questcard${glowCls(it)}" style="border-color:${it.col};border-width:4px"><div class="questic">${it.ic}</div><div class="questnm" style="color:${it.col}">${esc(it.nm)}</div><div class="questrar" style="color:${it.col}">${it.rar}</div><div class="questds">${itemLabel(it)}</div></div></div>
       <div class="row" style="justify-content:center"><button class="btn" id="bossNext">⚔️ Dalej</button></div>
     </div>`;
-  document.getElementById("bossNext").onclick=()=>{ const h=state.hero,r=state.rpg; const nb=(h.enemyIdx%5===0); r.enemy=makeEnemy(h.enemyIdx,h.level,nb); r.revealed=false; r.picked=null; r.floatEn=null; r.floatHero=null; r.combo=0; state.view="rpgbattle"; renderBattle(); };
+  document.getElementById("bossNext").onclick=()=>{ const h=state.hero,r=state.rpg; const nb=(h.enemyIdx%5===0); r.enemy=makeEnemy(h.enemyIdx,h.level,nb); r.revealed=false; r.picked=null; r.floatEn=null; r.floatHero=null; r.combo=0; enterCamp(); };
 }
 function renderQuest(leveled,coinGain){
   const h=state.hero; const choices=[genItem(h.level),genItem(h.level),genItem(h.level)];
@@ -1858,6 +1869,16 @@ function renderBankPane(){
       <h2 class="qtitle">Bank pytań</h2>
       <p class="qsub">${b?`${bs.total} ${plural(bs.total,"pytanie","pytania","pytań")} · opanowano <b>${bs.mastered}</b> (${bs.pct}%)${bs.skipped?` · ${bs.skipped} pominięto`:""}`:"Pytania pokrywające 100% materiału tej notatki (zwykle 40-70)."}</p>
       ${b?`<div class="msbar" style="max-width:340px;margin:0 auto 18px"><div class="msfill" style="width:${bs.pct}%"></div></div>`:""}
+      ${b?(()=>{ const qs=entry.bank.questions.filter(x=>!x.skip); const due=srDueCount(qs); const nd=srNextDue(qs); const dl=srDaysLeft(entry);
+        return `<div class="srcard">
+          <div class="srtop"><span class="srlead">🔁 Powtórka rozłożona w czasie</span>${dl!=null?`<span class="srexam">📅 egzamin za <b>${dl}</b> ${plural(dl,"dzień","dni","dni")}</span>`:""}</div>
+          <div class="srdue">${due>0?`Do powtórki teraz: <b>${due}</b> ${plural(due,"pytanie","pytania","pytań")}`:(nd?`Wszystko powtórzone ✓ Następna ${fmtIn(nd-Date.now())}`:"Zacznij ćwiczyć, a pytania trafią do harmonogramu powtórek.")}</div>
+          <div class="row" style="justify-content:center;margin-top:8px">
+            <button class="btn${due>0?"":" ghost"}" id="srStart" ${due>0?"":"disabled"}>🔁 Powtórz ${due>0?`(${due})`:""}</button>
+            <button class="btn ghost" id="srExam">📅 ${dl!=null?"Zmień termin":"Ustaw termin egzaminu"}</button>
+            ${dl!=null?`<button class="btn ghost" id="srExamClr" title="Usuń termin">✕</button>`:""}
+          </div>
+        </div>`; })():""}
       <div class="row" style="justify-content:center">
         ${b?`<button class="btn" id="msStart">▶ Ćwicz</button><label class="rpgtoggle"><input type="checkbox" id="bankRpg" ${state.rpgMode?"checked":""}> ⚔️ Tryb RPG</label><button class="btn ghost" id="bankWeak">📊 Słabe punkty</button><button class="btn ghost" id="bankReset">↺ Resetuj postęp</button><button class="btn ghost" id="bankRegen">✨ Zbuduj od nowa</button><button class="btn ghost" id="bankDel" style="color:var(--bad)">🗑 Usuń bank</button>`:`<button class="btn" id="bankGen">✨ Zbuduj bank pytań</button>`}
       </div>
@@ -1868,6 +1889,9 @@ function renderBankPane(){
   const brp=document.getElementById("bankRpg"); if(brp) brp.onchange=e=>{ state.rpgMode=e.target.checked; };
   const msb=document.getElementById("msStart"); if(msb) msb.onclick=()=>{ if(state.rpgMode) startAdventure(rpgPoolFromNotes([entry.id])); else startMastery(entry); };
   const bwk=document.getElementById("bankWeak"); if(bwk) bwk.onclick=()=>renderWeakSpots(entry);
+  const srs=document.getElementById("srStart"); if(srs) srs.onclick=()=>startReview(entry);
+  const sre=document.getElementById("srExam"); if(sre) sre.onclick=()=>{ const cur=srDaysLeft(entry); const v=prompt("Za ile dni masz egzamin? (powtórki zostaną zagęszczone przed terminem)", cur!=null?String(cur):"14"); if(v===null) return; const d=parseInt(v,10); if(!isNaN(d)&&d>0){ entry.examDate=Date.now()+d*86400000; entry.updated=Date.now(); save(); syncSoon(); renderBankPane(); } };
+  const src=document.getElementById("srExamClr"); if(src) src.onclick=()=>{ delete entry.examDate; entry.updated=Date.now(); save(); syncSoon(); renderBankPane(); };
   const br=document.getElementById("bankReset"); if(br) br.onclick=()=>{ if(confirm("Wyzerować postęp banku pytań?")){ entry.bank.questions.forEach(x=>{x.streak=0;x.wrong=0;x.seen=0;}); entry.updated=Date.now(); save(); syncSoon(); renderBankPane(); } };
   const brg=document.getElementById("bankRegen"); if(brg) brg.onclick=()=>{ if(confirm("Zbudować bank od nowa? Obecne pytania i postęp zostaną zastąpione.")) generateBank(entry); };
   const bdl=document.getElementById("bankDel"); if(bdl) bdl.onclick=()=>{ if(confirm("Usunąć bank pytań tej notatki? (notatka zostanie)")){ entry.bank=null; entry.updated=Date.now(); save(); syncSoon(); renderBankPane(); } };
@@ -1948,12 +1972,31 @@ async function generateBank(entry){
   state.view="bank"; renderNote();
   if(failed) setTimeout(()=>alert("Uwaga: "+failed+" sekcji nie udało się przepytać — możesz zbudować bank od nowa."),100);
 }
+const SR_DAYS=[0.007,1,3,7,16,35];
+function srDaysLeft(entry){ if(!entry||!entry.examDate) return null; return Math.max(0,Math.ceil((entry.examDate-Date.now())/86400000)); }
+function srUpdate(q,correct,entry){
+  q.box = correct ? Math.min((q.box||0)+1, SR_DAYS.length-1) : 0;
+  let iv = SR_DAYS[q.box];
+  const dl = srDaysLeft(entry);
+  if(dl!=null && dl>0) iv = Math.min(iv, Math.max(0.02, dl/2));
+  q.due = Date.now() + iv*86400000; q.last = Date.now();
+}
+function srDueCount(qs){ const now=Date.now(); return (qs||[]).filter(q=>!q.skip && (q.due||0)<=now).length; }
+function srNextDue(qs){ const f=(qs||[]).filter(q=>!q.skip && (q.due||0)>Date.now()).map(q=>q.due).sort((a,b)=>a-b); return f.length?f[0]:null; }
+function fmtIn(ms){ const m=Math.round(ms/60000); if(m<60) return "za "+m+" min"; const h=Math.round(m/60); if(h<24) return "za "+h+" h"; return "za "+Math.round(h/24)+" dni"; }
 function bankStats(entry){ const qs=entry.bank.questions.filter(x=>!x.skip); const m=qs.filter(x=>x.streak>=1).length; const skipped=entry.bank.questions.length-qs.length; return {total:qs.length,mastered:m,skipped:skipped,pct:qs.length?Math.round(100*m/qs.length):0}; }
 
 /* ---------- Uniwersalny tryb nauki (deck) ---------- */
 function deckStats(deck){ const qs=deck.items.filter(x=>!x.qq.skip); const m=qs.filter(x=>x.qq.streak>=1).length; return {total:qs.length,mastered:m,pct:qs.length?Math.round(100*m/qs.length):0}; }
 function startMastery(entry){
   const deck={items:entry.bank.questions.filter(x=>!x.skip).map(qq=>({qq,note:entry})),title:entry.note.title||"Bank pytań",onBack:()=>{ state.view="bank"; renderNote(); },resetAll:()=>{ entry.bank.questions.forEach(x=>{x.streak=0;x.wrong=0;x.seen=0;}); entry.updated=Date.now(); save(); syncSoon(); }};
+  runMastery(deck);
+}
+function startReview(entry){
+  const now=Date.now();
+  const due=entry.bank.questions.filter(x=>!x.skip && (x.due||0)<=now);
+  if(!due.length){ alert("Nie ma teraz pytań do powtórki. Wróć później — harmonogram sam je przypomni."); return; }
+  const deck={review:true,items:due.map(qq=>({qq,note:entry})),title:(entry.note.title||"Bank")+" — powtórka",onBack:()=>{ state.view="bank"; renderNote(); },resetAll:()=>{}};
   runMastery(deck);
 }
 function startSekcjaMastery(sk){
@@ -1965,16 +2008,18 @@ function startSekcjaMastery(sk){
 }
 function runMastery(deck){
   state.deck=deck;
-  const pool=deck.items.filter(x=>!x.qq.skip&&x.qq.streak<1);
+  const pool=deck.review ? deck.items.filter(x=>!x.qq.skip&&(x.qq.due||0)<=Date.now()) : deck.items.filter(x=>!x.qq.skip&&x.qq.streak<1);
   const pane=document.getElementById("pane")||content;
   if(!pool.length){
+    if(deck.review){ const nd=srNextDue(deck.items.map(x=>x.qq)); pane.innerHTML=`<div class="qsetup"><div class="qbadge big">✅</div><h2 class="qtitle">Powtórka zaliczona!</h2><p class="qsub">${nd?`Następne pytania wrócą ${fmtIn(nd-Date.now())}.`:"Brak zaplanowanych powtórek."}</p><div class="row" style="justify-content:center"><button class="btn ghost" id="msBack0">↩ Wróć</button></div></div>`; document.getElementById("msBack0").onclick=()=>deck.onBack(); return; }
     pane.innerHTML=`<div class="qsetup"><div class="qbadge big">🏆</div><h2 class="qtitle">Materiał opanowany!</h2><p class="qsub">Opanowałeś wszystkie ${deck.items.filter(x=>!x.qq.skip).length} pytań.</p><div class="row" style="justify-content:center"><button class="btn ghost" id="msReset0">↺ Resetuj postęp</button><button class="btn ghost" id="msBack0">↩ Wróć</button></div></div>`;
     document.getElementById("msReset0").onclick=()=>{ deck.resetAll(); runMastery(deck); };
     document.getElementById("msBack0").onclick=()=>deck.onBack();
     return;
   }
-  pool.sort((a,b)=>(b.qq.wrong-a.qq.wrong)||(a.qq.seen-b.qq.seen)||(Math.random()-.5));
-  state.ms={items:pool.slice(0,10),pos:0,picked:null,revealed:false,ok:0};
+  if(deck.review) pool.sort((a,b)=>(a.qq.due||0)-(b.qq.due||0));
+  else pool.sort((a,b)=>(b.qq.wrong-a.qq.wrong)||(a.qq.seen-b.qq.seen)||(Math.random()-.5));
+  state.ms={items:pool.slice(0,deck.review?15:10),pos:0,picked:null,revealed:false,ok:0};
   renderMastery();
 }
 function renderMastery(){
@@ -1997,10 +2042,10 @@ function renderMastery(){
     </div>
     <div class="row">${ms.revealed?`<button class="btn" id="msNext">Dalej →</button>`:`<button class="btn ghost" id="msNw" title="Nie znam — pytanie wróci">🤔 Nie wiem</button>`}<button class="btn ghost" id="msSkip" title="Usuń pytanie na stałe">🚫 Pomiń</button><button class="btn ghost" id="msQuit">Zakończ</button></div>`;
   function persist(){ it.note.updated=Date.now(); save(); syncSoon(); }
-  if(!ms.revealed) pane.querySelectorAll(".opt").forEach(el=>el.onclick=()=>{ ms.picked=+el.getAttribute("data-oi"); ms.revealed=true; qq.seen++; if(ms.picked===qq.correct){ qq.streak++; ms.ok++; } else { qq.streak=0; qq.wrong++; } persist(); renderMastery(); });
+  if(!ms.revealed) pane.querySelectorAll(".opt").forEach(el=>el.onclick=()=>{ ms.picked=+el.getAttribute("data-oi"); ms.revealed=true; qq.seen++; const ok=ms.picked===qq.correct; if(ok){ qq.streak++; ms.ok++; } else { qq.streak=0; qq.wrong++; } srUpdate(qq,ok,it.note); persist(); renderMastery(); });
   const _next=document.getElementById("msNext"); if(_next) _next.onclick=()=>{ ms.pos++; ms.picked=null; ms.revealed=false; renderMastery(); };
   document.getElementById("msQuit").onclick=()=>deck.onBack();
-  const _nw=document.getElementById("msNw"); if(_nw) _nw.onclick=()=>{ qq.seen++; qq.streak=0; qq.wrong+=2; ms.revealed=true; ms.picked=-1; persist(); renderMastery(); };
+  const _nw=document.getElementById("msNw"); if(_nw) _nw.onclick=()=>{ qq.seen++; qq.streak=0; qq.wrong+=2; srUpdate(qq,false,it.note); ms.revealed=true; ms.picked=-1; persist(); renderMastery(); };
   document.getElementById("msSkip").onclick=()=>{ qq.skip=true; persist(); ms.items.splice(ms.pos,1); if(ms.pos>=ms.items.length&&!ms.items.length){ deck.onBack(); return; } ms.picked=null; ms.revealed=false; renderMastery(); };
 }
 
