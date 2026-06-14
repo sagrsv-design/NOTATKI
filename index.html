@@ -636,6 +636,9 @@ textarea,.titlefield,.modelsel{background:#fff;color:var(--ink);border:1px solid
 .oseff{font-size:12px;color:#6a6658;line-height:1.45;margin-bottom:9px;min-height:36px}
 .osmax{text-align:center;font-size:12px;color:#5c7d63;font-weight:600;padding:6px;background:#eef5ea;border-radius:8px}
 .oslock{text-align:center;font-size:12px;color:#a59f8c;background:#f4f2ea;border-radius:8px;padding:7px}
+.ossh{font-family:'VT323',monospace;font-size:18px;color:#2c2a24;margin:16px 0 8px;letter-spacing:.3px}
+.osgrid{margin-bottom:4px}
+.bgrid .opt.elim{opacity:.32;pointer-events:none;text-decoration:line-through}
 </style>
 
 <div class="app">
@@ -1500,14 +1503,14 @@ const ITEM_BASES=[
 const TMAP={w:"weapon",a:"armor",t:"talisman"};
 function genItem(lvl){
   lvl=Math.max(1,Math.min(15,lvl||1));
-  const rarIdx=RARITY.indexOf(rollRarity(lvl)); const rar=RARITY[rarIdx];
+  let rarIdx=RARITY.indexOf(rollRarity(lvl)); if(!bLvl("wieza")&&rarIdx>=4) rarIdx=3; if(bLvl("platnerze")&&rarIdx<5&&Math.random()<0.05) rarIdx++; let rar=RARITY[rarIdx];
   let srcRank=lvl; if(Math.random()<0.35 && lvl>1) srcRank=1+Math.floor(Math.random()*lvl);
   const base=ITEM_RANKS[srcRank-1][rarIdx]; const type=TMAP[base[2]];
   const it={id:uid(),ic:base[0],nm:base[1],type:type,rar:rar.key,col:rar.col,atk:0,def:0,hp:0,crit:0,eff:null,sell:Math.round(rar.sell*(1+lvl*0.06))};
   if(type==="weapon") it.atk=Math.max(1,Math.round((3+srcRank*1.4)*rar.mult*0.55));
   else if(type==="armor") it.hp=Math.max(3,Math.round((10+srcRank*5)*rar.mult*0.5));
   else { const k=Math.random(); if(k<0.45) it.hp=Math.round((6+srcRank*2)*rar.mult*0.5); else if(k<0.8) it.crit=Math.max(1,Math.round((2+srcRank*0.3)*rar.mult)); else { it.atk=Math.round((2+srcRank*0.6)*rar.mult*0.5); it.crit=Math.max(1,Math.round(1.5*rar.mult)); } }
-  if(rarIdx>=((state.hero&&state.hero.buildings&&state.hero.buildings.skryptorium||0)>=3?2:3)){ const eff=["bleed","reflect","comboheal","dodge"][Math.floor(Math.random()*4)]; const m=rar.mult;
+  if(rarIdx>=3){ const eff=["bleed","reflect","comboheal","dodge"][Math.floor(Math.random()*4)]; const m=rar.mult;
     if(eff==="bleed") it.eff={t:"bleed",v:Math.round(2*m)};
     else if(eff==="reflect") it.eff={t:"reflect",v:Math.round(2*m)};
     else if(eff==="comboheal") it.eff={t:"comboheal",v:Math.round(2*m)};
@@ -1522,8 +1525,7 @@ function equippedItems(h){ const e=h.equipped||{}; const ids=[e.weapon,e.armor,e
 function autoEquip(h,it){ const e=h.equipped; if(it.type==="weapon"){ if(!e.weapon) e.weapon=it.id; } else if(it.type==="armor"){ if(!e.armor) e.armor=it.id; } else { if(!e.acc1) e.acc1=it.id; else if(!e.acc2) e.acc2=it.id; } }
 function heroEff(h){ const e={bleed:0,reflect:0,comboheal:0,dodge:0}; equippedItems(h).forEach(it=>{ if(it.eff){ if(it.eff.t==="dodge") e.dodge=Math.max(e.dodge,it.eff.v); else e[it.eff.t]+=it.eff.v; } }); return e; }
 function heroStats(h){ const b=baseFor(h.level||1); const m=h.meta||{hp:0,atk:0,def:0}; let maxHp=b.maxHp+(m.hp||0),atk=b.atk+(m.atk||0),def=b.def+(m.def||0),crit=b.crit; equippedItems(h).forEach(it=>{ maxHp+=it.hp||0; atk+=it.atk||0; def+=it.def||0; crit+=it.crit||0; });
-  const kl=Math.min((h.buildings&&h.buildings.koszary)||0,4); maxHp+=KO_HP[kl]; atk+=KO_ATK[kl]; def+=KO_DEF[kl];
-  const sk=(h.buildings&&h.buildings.skarbiec)||0; if(sk>=1){ const rm=sk>=2?0.5:0.25; const e=h.equipped||{}; const rids=[e.relic,e.relic2].filter(Boolean); (h.items||[]).forEach(it=>{ if(rids.indexOf(it.id)>=0){ maxHp+=Math.round((it.hp||0)*rm); atk+=Math.round((it.atk||0)*rm); def+=Math.round((it.def||0)*rm); } }); }
+  if(bLvl("koc")) maxHp+=20; if(bLvl("szmugler")) atk+=3;
   return {maxHp,atk,def,crit}; }
 function slotOf(it){ return it.type==="weapon"?"weapon":it.type==="armor"?"armor":"acc"; }
 function isEquipped(h,id){ const e=h.equipped||{}; return e.weapon===id||e.armor===id||e.acc1===id||e.acc2===id||e.relic===id||e.relic2===id; }
@@ -1654,83 +1656,75 @@ function renderTree(){
     <div class="haddwrap"></div></div>`;
   document.getElementById("treeBack").onclick=()=>renderRpgHome();
 }
-const BUILDINGS=[
- {key:"palenisko",ic:"🔥",name:"Palenisko",line:"Przetrwanie",lv:[
-   {rank:1,cost:4,eff:"Pierwsze leczenie przy Ognisku za darmo"},
-   {rank:3,cost:7,eff:"Leczenie u Cyrulika tańsze o 25%"},
-   {rank:6,cost:12,eff:"Darmowy opatrunek (+30% HP) przy każdym Ognisku"},
-   {rank:10,cost:18,eff:"Pełne uzdrowienie przy Ognisku za pół ceny"}]},
- {key:"kuznia",ic:"⚒️",name:"Kuźnia",line:"Rzemiosło",lv:[
-   {rank:2,cost:6,eff:"Odblokowuje przetapianie (fuzję) u kowala"},
-   {rank:5,cost:10,eff:"Przetop tańszy i celniejszy (lepsza rzadkość)"},
-   {rank:9,cost:16,eff:"Przetop niemal zawsze daje wyższą rzadkość"}]},
- {key:"targ",ic:"🛒",name:"Targ",line:"Handel",lv:[
-   {rank:2,cost:5,eff:"+30 złota startowego do wyprawy"},
-   {rank:5,cost:9,eff:"Kupiec ma 4 towary i tańszy odśwież"},
-   {rank:9,cost:14,eff:"Zniżka 15% na zakupy u kupca"},
-   {rank:13,cost:20,eff:"Kupiec zawsze ma 1 przedmiot epicki lub lepszy"}]},
- {key:"skryptorium",ic:"📜",name:"Skryptorium",line:"Wiedza",lv:[
-   {rank:1,cost:8,eff:"+10% XP i Diamentów z wypraw"},
-   {rank:4,cost:14,eff:"+20% XP i Diamentów (łącznie)"},
-   {rank:7,cost:22,eff:"Schematy: itemy częściej z magicznymi cechami"}]},
- {key:"skarbiec",ic:"🗝️",name:"Skarbiec",line:"Skarbiec",lv:[
-   {rank:4,cost:8,eff:"Relikwia daje +25% swoich statystyk"},
-   {rank:8,cost:16,eff:"Relikwia daje +50% statystyk"},
-   {rank:13,cost:40,eff:"Drugi slot Relikwii w wyprawie"}]},
- {key:"koszary",ic:"🛡️",name:"Koszary",line:"Wojsko",lv:[
-   {rank:1,cost:4,eff:"+25 maks. HP, +3 ATK, +2 OBR (trwałe)"},
-   {rank:5,cost:9,eff:"łącznie +40 HP, +5 ATK, +4 OBR"},
-   {rank:9,cost:15,eff:"łącznie +70 HP, +8 ATK, +6 OBR"},
-   {rank:13,cost:24,eff:"łącznie +110 HP, +12 ATK, +10 OBR"}]}
+const UNLOCKS=[
+ {k:"koc",rank:2,cost:5,ic:"⛺",name:"Gruby Koc i Suchy Kąt",eff:"+20 bazowego HP na stałe",stage:1},
+ {k:"szmugler",rank:3,cost:10,ic:"🔪",name:"Znajomości u Szmuglera",eff:"+3 do stałego ATK",stage:1},
+ {k:"skrytka",rank:4,cost:10,ic:"💰",name:"Skrytka pod Kamieniem",eff:"+50 złota na start wyprawy",stage:1},
+ {k:"talizman",rank:4,cost:15,ic:"🍀",name:"Szczęśliwy Talizman",eff:"Druga Szansa: raz na wyprawę anuluj błędną odpowiedź",stage:1},
+ {k:"medyk",rank:5,cost:15,ic:"🩺",name:"Namiot Medyka",eff:"Darmowe +10% Max HP przy każdym Ognisku",stage:2},
+ {k:"kwatermistrz",rank:6,cost:20,ic:"⚒️",name:"Przysługa u Kwatermistrza",eff:"Odblokowuje Fuzję (3 słabe → 1 lepszy) u kowala",stage:2},
+ {k:"skrzynia",rank:7,cost:25,ic:"🧰",name:"Prywatna Skrzynia Wojskowa",eff:"1. slot Relikwii — chroń przedmiot przed śmiercią",stage:2},
+ {k:"karczma",rank:8,cost:30,ic:"🍻",name:"Kontakty w Karczmie",eff:"Reroll — odśwież ofertę kupca za złoto",stage:2},
+ {k:"racje",rank:9,cost:30,ic:"🥩",name:"Lepsze Racje dla Garnizonu",eff:"Eliksiry lecznicze działają +50% mocniej",stage:3},
+ {k:"platnerze",rank:10,cost:35,ic:"🔨",name:"Gildia Płatnerzy",eff:"5% szans, że zdobyty łup ma wyższą jakość",stage:3},
+ {k:"magazyny",rank:11,cost:40,ic:"📦",name:"Magazyny Twierdzy",eff:"Plecak powiększa się do 25 slotów",stage:3},
+ {k:"plac",rank:12,cost:45,ic:"🎯",name:"Plac Treningowy Gwardii",eff:"Combo ×10 odrywa 15% HP wrogowi",stage:3},
+ {k:"wieza",rank:13,cost:60,ic:"🔮",name:"Wieża Alchemików i Magów",eff:"Odblokowuje legendarną i unikatową pulę łupów",stage:4},
+ {k:"gwardia",rank:14,cost:50,ic:"🛡️",name:"Osobista Gwardia Królewska",eff:"Ostatni Oddech: śmiertelny błąd zostawia Cię z 1 HP",stage:4},
+ {k:"skarbiec_kor",rank:15,cost:80,ic:"👑",name:"Skarbiec Koronny",eff:"2. slot Relikwii",stage:4},
+ {k:"edykt",rank:15,cost:90,ic:"📜",name:"Królewski Edykt Cenzury",eff:"Szósty Zmysł: usuń 2 błędne odpowiedzi (raz na etap)",stage:4}
 ];
-function bLvl(k){ const h=state.hero; return (h&&h.buildings&&h.buildings[k])||0; }
-function xpDiaMult(){ const l=bLvl("skryptorium"); return l>=2?1.2:(l>=1?1.1:1); }
-function relicSlots(){ return bLvl("skarbiec")>=3?2:1; }
-const KO_HP=[0,25,40,70,110],KO_ATK=[0,3,5,8,12],KO_DEF=[0,2,4,6,10];
+const STAGES=["🌧️ Etap I · Kryjówka w Rynsztoku","⚔️ Etap II · Koszary i Służba","🏰 Etap III · Zarządzanie Włościami","👑 Etap IV · Majestat i Władza"];
+function bLvl(k){ const h=state.hero; return (h&&h.buildings&&h.buildings[k])?1:0; }
+function xpDiaMult(){ return 1; }
+function relicSlots(){ return bLvl("skarbiec_kor")?2:(bLvl("skrzynia")?1:0); }
 function settleTier(lvl){ if(lvl<=3) return "Obozowisko"; if(lvl<=6) return "Osada"; if(lvl<=9) return "Warowna wieś"; if(lvl<=12) return "Gród"; return "Stolica Królestwa"; }
 function renderCamp(){
   const h=state.hero; h.buildings=h.buildings||{}; const dia=h.diamonds||0;
-  const built=BUILDINGS.filter(b=>bLvl(b.key)>0).map(b=>`<span class="osbld">${b.ic}</span>`).join("");
-  const cards=BUILDINGS.map(b=>{
-    const lvl=bLvl(b.key), max=b.lv.length, maxed=lvl>=max, next=maxed?null:b.lv[lvl];
-    const pips=b.lv.map((_,i)=>`<span class="ospip${i<lvl?" on":""}"></span>`).join("");
-    let action;
-    if(maxed) action=`<div class="osmax">✓ Maksymalny poziom</div>`;
-    else if((h.level||1)<next.rank) action=`<div class="oslock">🔒 Wymaga rangi ${next.rank}</div>`;
-    else action=`<button class="btn" data-bld="${b.key}" ${dia<next.cost?"disabled":""} style="width:100%;font-size:12px;padding:7px">${lvl===0?"🔨 Zbuduj":"⬆ Rozbuduj"} · 💎 ${next.cost}</button>`;
-    return `<div class="oscard${maxed?" done":""}"><div class="oshead"><span class="osic">${b.ic}</span><div><div class="osname">${esc(b.name)}</div><div class="osline">${esc(b.line)}</div></div></div><div class="ospips">${pips}</div><div class="oseff">${maxed?"Wszystko w tej linii odblokowane.":`Lvl ${lvl}/${max} · ${esc(next.eff)}`}</div>${action}</div>`;
-  }).join("");
+  const built=UNLOCKS.filter(u=>bLvl(u.k)).map(u=>`<span class="osbld">${u.ic}</span>`).join("");
+  const owned=UNLOCKS.filter(u=>bLvl(u.k)).length;
+  let body="";
+  for(let st=1; st<=4; st++){
+    const cards=UNLOCKS.filter(u=>u.stage===st).map(u=>{
+      const have=bLvl(u.k), locked=(h.level||1)<u.rank, afford=dia>=u.cost;
+      let action;
+      if(have) action=`<div class="osmax">✓ Posiadane</div>`;
+      else if(locked) action=`<div class="oslock">🔒 Wymaga rangi ${u.rank}</div>`;
+      else action=`<button class="btn" data-bld="${u.k}" ${afford?"":"disabled"} style="width:100%;font-size:12px;padding:7px">Odblokuj · 💎 ${u.cost}</button>`;
+      return `<div class="oscard${have?" done":""}"><div class="oshead"><span class="osic">${u.ic}</span><div><div class="osname">${esc(u.name)}</div><div class="osline">ranga ${u.rank}</div></div></div><div class="oseff">${esc(u.eff)}</div>${action}</div>`;
+    }).join("");
+    body+=`<div class="ossh">${STAGES[st-1]}</div><div class="osgrid">${cards}</div>`;
+  }
   content.innerHTML=`
     <button class="backbtn" id="campBack">‹ Wstecz</button>
     <div class="home" style="padding-top:0">
       <div class="hellorow"><h1 class="hello" style="font-size:22px">🏘️ Osada</h1><span class="rpgbtn" style="cursor:default;background:#fff;color:#9a6a1e;border:1px solid var(--accent-line)">💎 ${dia}</span></div>
-      <div class="hellosub">${settleTier(h.level)} · ${esc(rankName(h))} (ranga ${h.level}/15). Awanse odblokowują nowe budynki i wyższe poziomy.</div>
+      <div class="hellosub">${settleTier(h.level)} · ${esc(rankName(h))} (ranga ${h.level}/15) · odblokowano ${owned}/${UNLOCKS.length}. Awanse otwierają kolejne ulepszenia.</div>
       <div class="ospano">${built||'<span class="osbld">🔥</span>'}<span class="osfuture">🏰</span></div>
-      <div class="osgrid">${cards}</div>
+      ${body}
       <div class="haddwrap"></div>
     </div>`;
   document.getElementById("campBack").onclick=()=>renderRpgHome();
   content.querySelectorAll("[data-bld]").forEach(btn=>btn.onclick=()=>{
-    const k=btn.getAttribute("data-bld"), def=BUILDINGS.find(x=>x.key===k), lvl=bLvl(k);
-    if(lvl>=def.lv.length) return; const nx=def.lv[lvl];
-    if((h.level||1)<nx.rank || (h.diamonds||0)<nx.cost) return;
-    h.diamonds-=nx.cost; h.buildings[k]=lvl+1; const mx=heroStats(h).maxHp; if(h.hp<mx&&k==="koszary") h.hp=mx; if(h.hp>mx)h.hp=mx;
-    saveHero(); toast("🏗️ "+def.name+" — poziom "+(lvl+1)+"!"); renderCamp();
+    const k=btn.getAttribute("data-bld"), u=UNLOCKS.find(x=>x.k===k);
+    if(!u||bLvl(k)) return; if((h.level||1)<u.rank || (h.diamonds||0)<u.cost) return;
+    h.diamonds-=u.cost; h.buildings[k]=1; const mx=heroStats(h).maxHp; if(k==="koc"&&h.hp<mx) h.hp=mx; if(h.hp>mx)h.hp=mx;
+    saveHero(); toast("🏗️ Odblokowano: "+u.name+"!"); renderCamp();
   });
 }
 function renderInventory(){
   const h=state.hero; const e=h.equipped||{};
   const findIt=id=>id?(h.items||[]).find(x=>x.id===id):null;
   const slotHtml=(label,id)=>{ const it=findIt(id); return `<div class="slot ${it?"filled"+glowCls(it):""}" ${it?`style="border-color:${it.col}"`:""}>${it?`<div class="slotic">${it.ic}</div><div class="slotnm" style="color:${it.col}">${esc(it.nm)}</div><div class="slotst">${itemLabel(it)}</div><button class="slotun" data-uneq="${it.id}">zdejmij</button>`:`<div class="slotempty">${label}</div>`}</div>`; };
-  const cap=30; const backpack=(h.items||[]).filter(it=>!isEquipped(h,it.id));
+  const cap=bLvl("magazyny")?25:20; const backpack=(h.items||[]).filter(it=>!isEquipped(h,it.id));
   content.innerHTML=`
     <button class="backbtn" id="invBack">‹ Wstecz</button>
     <div class="home"><h1 class="hello" style="font-size:26px"><svg viewBox="0 0 20 20" width="15" height="15" style="vertical-align:-3px"><rect x="4" y="7" width="12" height="10" rx="3" fill="#6f7d5e"/><path d="M7 7.5a3 3 0 0 1 6 0" fill="none" stroke="#4f5e3d" stroke-width="1.5"/><rect x="8" y="10.5" width="4" height="4" rx="1" fill="#eef2ea"/></svg> Ekwipunek</h1>
     <div class="hellosub"><svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${h.coins} groszy · założone bonusy liczą się do statystyk. Plecak: ${backpack.length}/${cap}.</div>
     <div class="sublabel">Założone</div>
-    <div class="slots">${slotHtml("⚔️ Broń",e.weapon)}${slotHtml("🛡️ Pancerz",e.armor)}${slotHtml("💍 Akcesorium I",e.acc1)}${slotHtml("🪬 Akcesorium II",e.acc2)}${slotHtml("✨ Relikwia",e.relic)}${relicSlots()>=2?slotHtml("✨ Relikwia II",e.relic2):""}</div><div class="muted small" style="margin:-2px 0 6px">Przedmiot w slocie ✨ Relikwia przetrwa śmierć i wróci w kolejnej wyprawie.</div>
+    <div class="slots">${slotHtml("⚔️ Broń",e.weapon)}${slotHtml("🛡️ Pancerz",e.armor)}${slotHtml("💍 Akcesorium I",e.acc1)}${slotHtml("🪬 Akcesorium II",e.acc2)}${relicSlots()>=1?slotHtml("✨ Relikwia",e.relic):""}${relicSlots()>=2?slotHtml("✨ Relikwia II",e.relic2):""}</div><div class="muted small" style="margin:-2px 0 6px">Przedmiot w slocie ✨ Relikwia przetrwa śmierć i wróci w kolejnej wyprawie.</div>
     <div class="sublabel">Plecak</div>
-    <div class="hlist">${backpack.length?backpack.map(it=>`<div class="hcard">${itemSq(it)}<div class="hbody"><h4>${esc(it.nm)} <span class="rarlabel" style="color:${it.col}">${it.rar}</span></h4><div class="hmeta">${itemLabel(it)} · <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${it.sell}</div></div><div style="display:flex;flex-direction:column;gap:5px"><button class="btn ghost" data-eq="${it.id}" style="font-size:12px;padding:5px 10px">Załóż</button><button class="btn ghost" data-relic="${it.id}" style="font-size:12px;padding:5px 10px">✨ Relikwia</button><button class="btn ghost" data-sell="${it.id}" style="color:var(--bad);font-size:12px;padding:5px 10px">Sprzedaj</button></div></div>`).join(""):`<div class="hempty">Plecak pusty. Zdobywaj łupy w wyprawach.</div>`}</div>
+    <div class="hlist">${backpack.length?backpack.map(it=>`<div class="hcard">${itemSq(it)}<div class="hbody"><h4>${esc(it.nm)} <span class="rarlabel" style="color:${it.col}">${it.rar}</span></h4><div class="hmeta">${itemLabel(it)} · <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${it.sell}</div></div><div style="display:flex;flex-direction:column;gap:5px"><button class="btn ghost" data-eq="${it.id}" style="font-size:12px;padding:5px 10px">Załóż</button>${relicSlots()>=1?`<button class="btn ghost" data-relic="${it.id}" style="font-size:12px;padding:5px 10px">✨ Relikwia</button>`:""}<button class="btn ghost" data-sell="${it.id}" style="color:var(--bad);font-size:12px;padding:5px 10px">Sprzedaj</button></div></div>`).join(""):`<div class="hempty">Plecak pusty. Zdobywaj łupy w wyprawach.</div>`}</div>
     <div class="haddwrap"></div></div>`;
   document.getElementById("invBack").onclick=()=>{ if(state.rpg) renderBattle(); else renderRpgHome(); };
   content.querySelectorAll("[data-eq]").forEach(b=>b.onclick=()=>{ equipItem(h,b.getAttribute("data-eq")); saveHero(); renderInventory(); });
@@ -1747,7 +1741,7 @@ function shopTier(lvl){ if(lvl<=4) return {t:"Paser w zaułku",d:"Handel w błoc
 function rollShopStock(){ const h=state.hero; const stock=[]; const n=bLvl("targ")>=2?4:3; for(let k=0;k<n;k++) stock.push(genItem(Math.max(1,h.level-1+Math.floor(Math.random()*2)))); if(bLvl("targ")>=4 && !stock.some(it=>RARITY.findIndex(x=>x.key===it.rar)>=3)){ let g,c=0; do{ g=genItem(h.level+1); c++; }while(RARITY.findIndex(x=>x.key===g.rar)<3 && c<14); stock[0]=g; } state.shopStock=stock; }
 function itemPrice(it){ const r=RARITY.find(x=>x.key===it.rar)||RARITY[0]; return Math.round(r.sell*2.6*(1+(state.hero.level||1)*0.05)*(bLvl("targ")>=3?0.85:1)); }
 const CAMP_EVERY=10;
-function enterCamp(){ const h=state.hero; h.campAtAns=(h.answered||0)+CAMP_EVERY; state.campShop=true; state.campHealFree=bLvl("palenisko")>=1; rollShopStock(); state.view="rpgbattle"; renderShop(); }
+function enterCamp(){ const h=state.hero; h.campAtAns=(h.answered||0)+CAMP_EVERY; state.campShop=true; state.campMedicUsed=false; if(state.rpg) state.rpg.sixthUsed=false; rollShopStock(); state.view="rpgbattle"; renderShop(); }
 function renderShop(){
   const h=state.hero; const tier=shopTier(h.level); if(!state.shopStock) rollShopStock(); const camp=!!state.campShop;
   const st=heroStats(h); const missing=st.maxHp-h.hp; const _hd=bLvl("palenisko")>=2?0.75:1; const _fullHalf=bLvl("palenisko")>=4?0.5:1; let healCost=Math.max(0,Math.round(missing*0.6*_hd*_fullHalf)); const halfHp=Math.min(missing,Math.round(st.maxHp*0.5)); let halfCost=Math.max(0,Math.round(halfHp*0.6*_hd)); if(camp&&state.campHealFree&&missing>0){ halfCost=0; } const hpPct=Math.round(100*h.hp/st.maxHp);
@@ -1765,15 +1759,15 @@ function renderShop(){
     <div class="sublabel">Cyrulik — odpoczynek</div>
     <div class="hlist">
     <div class="hcard"><div class="hbody"><h4>💛 Opatrunek (+50% HP)</h4><div class="hmeta">${missing>0?`Przywraca ${halfHp} HP · koszt <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${halfCost}`:"Jesteś w pełni zdrowy"}</div></div><button class="btn ghost" id="healHalf" style="font-size:12px;padding:6px 12px" ${(missing<=0||h.coins<halfCost)?"disabled":""}>Opatrz</button></div>
-    <div class="hcard"><div class="hbody"><h4>❤️ Pełne uzdrowienie</h4><div class="hmeta">${missing>0?`Brakuje ${missing} HP · koszt <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${healCost}`:"Jesteś w pełni zdrowy"}</div></div><button class="btn ghost" id="healBtn" style="font-size:12px;padding:6px 12px" ${(missing<=0||h.coins<healCost)?"disabled":""}>Ulecz</button></div></div>
+    <div class="hcard"><div class="hbody"><h4>❤️ Pełne uzdrowienie</h4><div class="hmeta">${missing>0?`Brakuje ${missing} HP · koszt <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${healCost}`:"Jesteś w pełni zdrowy"}</div></div><button class="btn ghost" id="healBtn" style="font-size:12px;padding:6px 12px" ${(missing<=0||h.coins<healCost)?"disabled":""}>Ulecz</button></div>${(camp&&bLvl("medyk")&&!state.campMedicUsed&&missing>0)?`<div class="hcard"><div class="hbody"><h4>🩺 Opatrunek medyka</h4><div class="hmeta">Darmowe +10% Max HP · raz na ognisko</div></div><button class="btn ghost" id="healMedic" style="font-size:12px;padding:6px 12px">Opatrz</button></div>`:""}</div>
     <div class="sublabel">Eliksiry i koła ratunkowe</div>
     <div class="hlist">${consHtml}</div>
-    <div class="sublabel">Towary kupca <button class="btn ghost" id="restock" style="font-size:11px;padding:4px 9px;margin-left:6px">↻ Odśwież (<svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> 15)</button></div>
+    <div class="sublabel">Towary kupca ${bLvl("karczma")?`<button class="btn ghost" id="restock" style="font-size:11px;padding:4px 9px;margin-left:6px">↻ Odśwież (<svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> 15)</button>`:""}</div>
     <div class="hlist">${goodsHtml}</div>
     <div class="sublabel">Tajemnicza skrzynia</div>
     <div class="hlist"><div class="hcard"><div class="hbody"><h4>🎁 Kot w worku</h4><div class="hmeta">Losowy przedmiot — od śmiecia po unikat · <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> 120</div></div><button class="btn ghost" id="gacha" style="font-size:12px;padding:6px 12px" ${h.coins<120?"disabled":""}>Otwórz</button></div></div>
     <div class="sublabel">Kowal — przetapianie</div>
-    ${bLvl("kuznia")<1?`<div class="hempty">🔒 Zbuduj Kuźnię w Osadzie, by przetapiać łup.</div>`:`<div class="hlist">${mergeable.length?mergeable.map(r=>{ const col=(RARITY.find(x=>x.key===r)||{}).col; return `<div class="hcard"><div class="hbody"><h4 style="color:${col}">Przetop 3× <span class="rarlabel" style="color:${col}">${r}</span></h4><div class="hmeta">Z 3 przedmiotów tej rzadkości wykuj 1 wyższej · <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> 20</div></div><button class="btn ghost" data-merge="${r}" style="font-size:12px;padding:6px 12px" ${h.coins<20?"disabled":""}>Przetop</button></div>`; }).join(""):`<div class="hempty">Zbierz 3 przedmioty tej samej rzadkości (w plecaku), by je przetopić w lepszy.</div>`}</div>`}
+    ${bLvl("kwatermistrz")<1?`<div class="hempty">🔒 Zdobądź „Przysługę u Kwatermistrza" w Osadzie, by przetapiać łup.</div>`:`<div class="hlist">${mergeable.length?mergeable.map(r=>{ const col=(RARITY.find(x=>x.key===r)||{}).col; return `<div class="hcard"><div class="hbody"><h4 style="color:${col}">Przetop 3× <span class="rarlabel" style="color:${col}">${r}</span></h4><div class="hmeta">Z 3 przedmiotów tej rzadkości wykuj 1 wyższej · <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> 20</div></div><button class="btn ghost" data-merge="${r}" style="font-size:12px;padding:6px 12px" ${h.coins<20?"disabled":""}>Przetop</button></div>`; }).join(""):`<div class="hempty">Zbierz 3 przedmioty tej samej rzadkości (w plecaku), by je przetopić w lepszy.</div>`}</div>`}
     <div class="sublabel">Kuźnia — ofiara z relikwii (za 💎)</div>
     <div class="hlist">${scrapable.length?scrapable.map(it=>`<div class="hcard">${itemSq(it)}<div class="hbody"><h4>${esc(it.nm)} <span class="rarlabel" style="color:${it.col}">${it.rar}</span></h4><div class="hmeta">Zniszcz na zawsze za 💎 ${scrapDia(it)} ${plural(scrapDia(it),"Diament","Diamenty","Diamentów")} Wiedzy</div></div><button class="btn ghost" data-scrap="${it.id}" style="font-size:12px;padding:6px 12px">💎 Złom</button></div>`).join(""):`<div class="hempty">Brak przedmiotów epickich lub lepszych do złomowania (liczą się te w plecaku).</div>`}</div>
     <div class="haddwrap"></div></div>`;
@@ -1781,6 +1775,7 @@ function renderShop(){
   content.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>{ const it=SHOP.find(x=>x.key===b.getAttribute("data-buy")); if(h.coins<it.cost) return; h.coins-=it.cost; h.cons[it.key]=(h.cons[it.key]||0)+1; saveHero(); renderShop(); });
   content.querySelectorAll("[data-buygood]").forEach(b=>b.onclick=()=>{ const ix=+b.getAttribute("data-buygood"); const it=state.shopStock[ix]; if(!it||h.coins<itemPrice(it)) return; h.coins-=itemPrice(it); h.items.push(it); autoEquip(h,it); state.shopStock.splice(ix,1); saveHero(); renderShop(); });
   document.getElementById("healBtn").onclick=()=>{ if(missing<=0||h.coins<healCost) return; h.coins-=healCost; h.hp=st.maxHp; saveHero(); renderShop(); };
+  { const hm=document.getElementById("healMedic"); if(hm) hm.onclick=()=>{ h.hp=Math.min(st.maxHp,h.hp+Math.round(st.maxHp*0.1)); state.campMedicUsed=true; saveHero(); renderShop(); }; }
   { const hb=document.getElementById("healHalf"); if(hb) hb.onclick=()=>{ if(missing<=0||h.coins<halfCost) return; h.coins-=halfCost; if(halfCost===0) state.campHealFree=false; h.hp=Math.min(st.maxHp,h.hp+halfHp); saveHero(); renderShop(); }; }
   document.getElementById("restock").onclick=()=>{ const rc=bLvl("targ")>=2?8:15; if(h.coins<rc) return; h.coins-=rc; rollShopStock(); saveHero(); renderShop(); };
   document.getElementById("gacha").onclick=()=>{ if(h.coins<120) return; h.coins-=120; const it=genItem(h.level+1); h.items.push(it); autoEquip(h,it); saveHero(); alert("Ze skrzyni wypadło: "+it.ic+" "+it.nm+" ["+it.rar+"]!"); renderShop(); };
@@ -1790,10 +1785,10 @@ function renderShop(){
 }
 function startRun(){ const h=state.hero;
   h.items=[]; const _eq={weapon:null,armor:null,acc1:null,acc2:null,relic:null,relic2:null};
-  if(h.relic){ const c=JSON.parse(JSON.stringify(h.relic)); h.items.push(c); _eq.relic=c.id; }
+  if(relicSlots()>=1 && h.relic){ const c=JSON.parse(JSON.stringify(h.relic)); h.items.push(c); _eq.relic=c.id; }
   if(relicSlots()>=2 && h.relic2){ const c2=JSON.parse(JSON.stringify(h.relic2)); h.items.push(c2); _eq.relic2=c2.id; }
   h.equipped=_eq;
-  h.coins = 10 + ((h.meta&&h.meta.gold)||0) + (bLvl("targ")>=1?30:0);
+  h.coins = 10 + ((h.meta&&h.meta.gold)||0) + (bLvl("skrytka")?50:0);
   h.cons={potion:0,fury:0,ward:0};
   h.enemyIdx=0; h.questAt=8; h.questStep=3; h.campAtAns=(h.answered||0)+CAMP_EVERY;
   h.hp=heroStats(h).maxHp;
@@ -1808,7 +1803,7 @@ function endRun(){ const h=state.hero;
 function startAdventure(pool,srEntry){
   if(!pool||pool.length<4){ alert("Ta wyprawa nie ma dość pytań (min. 4)."); return; }
   const h=state.hero; startRun();
-  state.rpg={enemy:makeEnemy(0,h.level,false),pool:rpgShuffle(pool),qi:0,combo:0,picked:null,revealed:false,fury:false,ward:false,srEntry:srEntry||null};
+  state.rpg={enemy:makeEnemy(0,h.level,false),pool:rpgShuffle(pool),qi:0,combo:0,picked:null,revealed:false,fury:false,ward:false,secondUsed:false,breathUsed:false,sixthUsed:false,sixth:null,srEntry:srEntry||null};
   state.view="rpgbattle"; renderBattle();
 }
 function rpgLevelCheck(){ const h=state.hero; let up=false; while(h.level<15 && h.xp>=xpNeeded(h.level)){ h.xp-=xpNeeded(h.level); h.level++; h.hp=heroStats(h).maxHp; h.diamonds=(h.diamonds||0)+Math.round(3*xpDiaMult()); up=true; h._lvlFlash=true; } if(h.level>=15) h.xp=Math.min(h.xp,xpNeeded(15)); return up; }
@@ -1833,7 +1828,7 @@ function renderBattle(){
       <div class="bx-cov"><div style="width:${(()=>{ const tot=r.pool.length, mas=r.pool.filter(qq=>(qq.streak||0)>=1).length; return tot?Math.round(100*mas/tot):0; })()}%"></div></div>
       ${isNem?'<div class="nemhint">⭐ To pytanie nękało Cię wcześniej — odpowiedz dobrze, by zdobyć 💎!</div>':''}
       <div class="bx-q">${esc(q.q)}</div>
-      <div class="bgrid">${q.options.map((o,oi)=>{ let cls="opt"; if(r.revealed){ if(oi===q.correct) cls+=" correct"; else if(oi===r.picked) cls+=" wrong"; } return `<div class="${cls}" data-oi="${oi}"><span class="ot"><b>${"ABCD"[oi]}.</b> ${esc(o)}</span><span class="mk">${r.revealed&&oi===q.correct?"✓":r.revealed&&oi===r.picked?"✗":""}</span></div>`; }).join("")}</div>
+      <div class="bgrid">${q.options.map((o,oi)=>{ let cls="opt"; const elim=(r.sixth&&r.sixthQi===r.qi&&r.sixth.indexOf(oi)>=0); if(elim) cls+=" elim"; if(r.revealed){ if(oi===q.correct) cls+=" correct"; else if(oi===r.picked) cls+=" wrong"; } return `<div class="${cls}" data-oi="${oi}"><span class="ot"><b>${"ABCD"[oi]}.</b> ${esc(o)}</span><span class="mk">${r.revealed&&oi===q.correct?"✓":r.revealed&&oi===r.picked?"✗":""}</span></div>`; }).join("")}</div>${(!r.revealed&&bLvl("edykt")&&!r.sixthUsed)?`<div style="text-align:center;margin-bottom:7px"><button class="btn ghost" id="sixth" style="font-size:12px;padding:6px 12px">👁️ Szósty Zmysł — usuń 2 błędne</button></div>`:""}
       ${r.revealed&&q.explanation?`<div class="bx-exp">💡 ${esc(q.explanation)}</div>`:""}
       <div class="bx-foot"><div class="bx-cons">${["potion","fury","ward"].map(k=>{ const it=SHOP.find(x=>x.key===k); const cnt=h.cons[k]||0; return `<button class="consbtn" data-use="${k}" ${cnt&&!r.revealed?"":"disabled"} title="${esc(it.desc)}">${it.ic} ${cnt}</button>`; }).join("")}<button class="consbtn" id="bInv" title="Ekwipunek"><svg viewBox="0 0 20 20" width="15" height="15" style="vertical-align:-3px"><rect x="4" y="7" width="12" height="10" rx="3" fill="#6f7d5e"/><path d="M7 7.5a3 3 0 0 1 6 0" fill="none" stroke="#4f5e3d" stroke-width="1.5"/><rect x="8" y="10.5" width="4" height="4" rx="1" fill="#eef2ea"/></svg></button></div><div class="bx-gold pix"><svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${h.coins}</div></div>
       ${r.revealed?`<div class="row" style="justify-content:center"><button class="btn" id="bNext">${en.hp<=0?"🏆 Zwycięstwo →":(h.hp<=0?"💀 Dalej":"▶ Dalej")}</button></div>`:`<div class="muted small" style="text-align:center">Trafna odpowiedź rani potwora, błędna rani Ciebie.</div>`}
@@ -1841,12 +1836,13 @@ function renderBattle(){
   document.getElementById("bExit").onclick=()=>{ if(confirm("Porzucić wyprawę? Stracisz zebrany łup i złoto (Relikwia, XP i Diamenty zostają).")){ endRun(); openRpg(); } };
   document.getElementById("bInv").onclick=()=>renderInventory();
   if(!r.revealed){ content.querySelectorAll(".opt").forEach(el=>el.onclick=()=>rpgAnswer(+el.getAttribute("data-oi"))); }
+  { const sx=document.getElementById("sixth"); if(sx) sx.onclick=()=>{ const rr=state.rpg, qq=rr.pool[rr.qi%rr.pool.length]; const wrong=qq.options.map((_,i)=>i).filter(i=>i!==qq.correct); for(let n=wrong.length-1;n>0;n--){ const j=Math.floor(Math.random()*(n+1)); const t=wrong[n]; wrong[n]=wrong[j]; wrong[j]=t; } rr.sixth=wrong.slice(0,2); rr.sixthQi=rr.qi; rr.sixthUsed=true; renderBattle(); }; }
   content.querySelectorAll("[data-use]").forEach(b=>b.onclick=()=>rpgUse(b.getAttribute("data-use")));
   const nx=document.getElementById("bNext"); if(nx) nx.onclick=()=>rpgNext();
 }
 function rpgUse(k){
   const h=state.hero, r=state.rpg; if(r.revealed||!(h.cons[k]>0)) return;
-  if(k==="potion"){ const st=heroStats(h); h.hp=Math.min(st.maxHp,h.hp+Math.round(st.maxHp*0.5)); }
+  if(k==="potion"){ const st=heroStats(h); h.hp=Math.min(st.maxHp,h.hp+Math.round(st.maxHp*(bLvl("racje")?0.75:0.5))); }
   else if(k==="fury"){ r.fury=true; }
   else if(k==="ward"){ r.ward=true; }
   h.cons[k]--; saveHero(); renderBattle();
@@ -1860,16 +1856,20 @@ function rpgAnswer(oi){
     r.combo++; let dmg=st.atk+(r.combo-1)*2; const crit=Math.random()*100<st.crit; if(crit) dmg=Math.round(dmg*1.8); if(r.fury){ dmg*=2; r.fury=false; }
     if(r.enemy.affix==="armored"){ dmg=Math.max(1,dmg-Math.ceil(dmg*0.3)); }
     const ef=heroEff(h); if(ef.bleed){ r.enemy.hp-=ef.bleed; } if(ef.comboheal&&r.combo>=3){ h.hp=Math.min(st.maxHp,h.hp+ef.comboheal); }
-    r.enemy.hp-=dmg; r.enemyHurt=true; r.floatEn=dmg+(crit?" KRYT!":"")+(ef.bleed?" +"+ef.bleed:"");
+    r.enemy.hp-=dmg; r.enemyHurt=true; r.floatEn=dmg+(crit?" KRYT!":"")+(ef.bleed?" +"+ef.bleed:""); if(bLvl("plac")&&r.combo>0&&r.combo%10===0){ const cb=Math.round(r.enemy.maxHp*0.15); r.enemy.hp-=cb; r.floatEn=(r.floatEn||"")+" 🎯-"+cb; }
     if(r.enemy.affix==="thorny"){ const t=Math.max(1,Math.round(r.enemy.atk*0.25)); h.hp-=t; r.floatHero=t; r.heroHurt=true; }
     if((q.streak||0)<1){ q.streak=1; q.seen=(q.seen||0)+1; if(h.level<15){ h.xp+=Math.round(10*xpDiaMult()); rpgLevelCheck(); } r._learned=(r._learned||0)+1; } srUpdate(q,true,(state.rpg&&state.rpg.srEntry)||null); if(isNem){ h.diamonds=(h.diamonds||0)+Math.max(1,Math.round(1*xpDiaMult())); r.nemDone=r.nemDone||{}; r.nemDone[q.q]=true; r.floatEn=(r.floatEn||"")+" ⭐💎+1"; } try{ save(); syncSoon(); }catch(e){} // XP tylko z nowych pytań
   } else {
     r.combo=0; const ef=heroEff(h);
-    if(r.ward){ r.ward=false; r.floatHero="0"; }
+    if(bLvl("talizman") && !r.secondUsed){ r.secondUsed=true; r.floatHero="🍀"; toast("🍀 Druga Szansa — błąd anulowany!"); }
+    else if(r.ward){ r.ward=false; r.floatHero="0"; }
     else if(ef.dodge && Math.random()*100<ef.dodge){ r.floatHero="UNIK"; }
-    else { let dmg=Math.max(2,r.enemy.atk-st.def); h.hp-=dmg; r.floatHero=dmg; r.heroHurt=true; }
+    else {
+      let dmg=Math.max(2,r.enemy.atk-st.def); h.hp-=dmg; r.floatHero=dmg; r.heroHurt=true;
+      if(r.enemy.affix==="vampiric"){ r.enemy.hp=Math.min(r.enemy.maxHp,r.enemy.hp+Math.round(r.enemy.maxHp*0.08)); }
+      if(h.hp<=0 && bLvl("gwardia") && !r.breathUsed){ h.hp=1; r.breathUsed=true; r.floatHero="🛡️"; toast("🛡️ Ostatni Oddech — ocalony z 1 HP!"); }
+    }
     if(ef.reflect){ r.enemy.hp-=ef.reflect; r.floatEn=ef.reflect; r.enemyHurt=true; }
-    if(r.enemy.affix==="vampiric"){ r.enemy.hp=Math.min(r.enemy.maxHp,r.enemy.hp+Math.round(r.enemy.maxHp*0.08)); }
     srUpdate(q,false,(state.rpg&&state.rpg.srEntry)||null);
   }
   tickDaily(); saveHero(); renderBattle();
