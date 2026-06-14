@@ -587,8 +587,8 @@ textarea,.titlefield,.modelsel{background:#fff;color:var(--ink);border:1px solid
 .bx-combo{position:absolute;left:8px;bottom:8px;background:#fff;border:1px solid #e0dbc9;border-radius:6px;padding:0 8px;font-size:15px;color:#9a6a1e}
 
 /* === jasne tło areny === */
-.bx-stage{background:radial-gradient(70% 95% at 50% 16%,#fbfaf2,transparent 72%),linear-gradient(180deg,#eaf1ea 0%,#e3ecd9 60%,#dae4cc 100%)}
-.bx-stage::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(closest-side at 17% 98%,rgba(120,150,105,.30),transparent),radial-gradient(closest-side at 83% 98%,rgba(120,150,105,.28),transparent),radial-gradient(closest-side at 50% 104%,rgba(150,175,130,.34),transparent)}
+.bx-stage{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20300%20130%27%20preserveAspectRatio%3D%27xMidYMid%20slice%27%3E%3Cdefs%3E%3ClinearGradient%20id%3D%27s%27%20x1%3D%270%27%20y1%3D%270%27%20x2%3D%270%27%20y2%3D%271%27%3E%3Cstop%20offset%3D%270%27%20stop-color%3D%27%23eef5f0%27%2F%3E%3Cstop%20offset%3D%271%27%20stop-color%3D%27%23e6efe0%27%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%27300%27%20height%3D%27130%27%20fill%3D%27url%28%23s%29%27%2F%3E%3Ccircle%20cx%3D%27150%27%20cy%3D%2730%27%20r%3D%2742%27%20fill%3D%27%23fbf4dc%27%20opacity%3D%27.65%27%2F%3E%3Cpath%20d%3D%27M0%2092%20Q75%2066%20150%2088%20T300%2086%20V130%20H0Z%27%20fill%3D%27%23d2dec3%27%2F%3E%3Cpath%20d%3D%27M0%20106%20Q95%2086%20175%20104%20T300%20102%20V130%20H0Z%27%20fill%3D%27%23c2d4ad%27%2F%3E%3Cg%3E%3Cellipse%20cx%3D%2730%27%20cy%3D%2788%27%20rx%3D%2716%27%20ry%3D%2719%27%20fill%3D%27%2394b187%27%2F%3E%3Crect%20x%3D%2727%27%20y%3D%2795%27%20width%3D%276%27%20height%3D%2715%27%20fill%3D%27%239c7d54%27%2F%3E%3Cellipse%20cx%3D%27272%27%20cy%3D%2786%27%20rx%3D%2718%27%20ry%3D%2721%27%20fill%3D%27%238aa97e%27%2F%3E%3Crect%20x%3D%27269%27%20y%3D%2793%27%20width%3D%276%27%20height%3D%2717%27%20fill%3D%27%239c7d54%27%2F%3E%3C%2Fg%3E%3Crect%20x%3D%270%27%20y%3D%27118%27%20width%3D%27300%27%20height%3D%2712%27%20fill%3D%27%23cdd9bb%27%2F%3E%3C%2Fsvg%3E");background-size:cover;background-position:center bottom}
+.bx-stage::before{display:none}
 /* gładsze (mniej pikselowe) sylwetki w walce/hubie/drzewku */
 .bx-stage .ravatar,.heroav .ravatar,.treeav .ravatar,.bx-port .pv .ravatar,.cmbemoji .ravatar{image-rendering:auto}
 .htab{white-space:nowrap}
@@ -611,6 +611,10 @@ textarea,.titlefield,.modelsel{background:#fff;color:var(--ink);border:1px solid
  .htab{padding:8px 12px;font-size:13px}
  .htab .cnt{margin-left:5px}
 }
+.isq{border:2px solid var(--border);border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;line-height:1;flex:none}
+.hbohater{flex-basis:100%;border:1px solid var(--accent-line);background:linear-gradient(135deg,#5c7d63,#496a52);color:#fff;font-weight:600;font-size:15px;padding:12px;border-radius:14px;box-shadow:var(--shadow);margin-top:3px;cursor:pointer}
+.hbohater.active{outline:2px solid #c69a3a;outline-offset:1px}
+.hbohater:hover{filter:brightness(1.05)}
 </style>
 
 <div class="app">
@@ -1378,7 +1382,7 @@ function renderHome(){
         <button class="htab" data-ht="quizzes">🧠 Quizy<span class="cnt">${qn}</span></button>
         <button class="htab" data-ht="banks">🏰 Lochy<span class="cnt">${bn}</span></button>
         <button class="htab active" data-ht="sekcje">🗺️ Prowincje<span class="cnt">${sn}</span></button>
-        <button class="htab" data-ht="rpg">⚔️ RPG</button>
+        <button class="hbohater" data-ht="rpg">⚔️ Bohater</button>
       </div>
       <div class="hlist">${skCards}</div>
       <div class="haddwrap"><button class="hadd" id="homeNewSek">＋ Nowa prowincja</button></div>
@@ -1407,7 +1411,7 @@ function renderHome(){
         <button class="htab${tab==="quizzes"?" active":""}" data-ht="quizzes">🧠 Quizy<span class="cnt">${qn}</span></button>
         <button class="htab${tab==="banks"?" active":""}" data-ht="banks">🏰 Lochy<span class="cnt">${bn}</span></button>
         <button class="htab${tab==="sekcje"?" active":""}" data-ht="sekcje">🗺️ Prowincje<span class="cnt">${state.sekcje.length}</span></button>
-        <button class="htab${tab==="rpg"?" active":""}" data-ht="rpg">⚔️ RPG</button>
+        <button class="hbohater${tab==="rpg"?" active":""}" data-ht="rpg">⚔️ Bohater</button>
       </div>
       <div class="hlist">${cards}</div>
       <div class="haddwrap"><button class="hadd" id="homeNew">＋ Dodaj zwój</button></div>
@@ -1490,6 +1494,7 @@ function genItem(lvl){
   return it;
 }
 function glowCls(it){ return (it&&it.rar&&it.rar!=="pospolity")?(" glow-"+it.rar):""; }
+function itemSq(it,sz){ sz=sz||46; return `<div class="isq${glowCls(it)}" style="border-color:${it.col};width:${sz}px;height:${sz}px;font-size:${Math.round(sz*0.52)}px">${it.ic}</div>`; }
 function effLabel(e){ if(!e) return ""; const n={bleed:"krwawienie",reflect:"odbicie",comboheal:"lecz. combo",dodge:"unik"}; return n[e.t]+" "+e.v+(e.t==="dodge"?"%":""); }
 function itemLabel(it){ const parts=[]; if(it.atk)parts.push("+"+it.atk+" ATK"); if(it.def)parts.push("+"+it.def+" OBR"); if(it.hp)parts.push("+"+it.hp+" HP"); if(it.crit)parts.push("+"+it.crit+"% kryt."); if(it.eff)parts.push("✦ "+effLabel(it.eff)); return parts.join(", "); }
 function equippedItems(h){ const e=h.equipped||{}; const ids=[e.weapon,e.armor,e.acc1,e.acc2,e.relic].filter(Boolean); return (h.items||[]).filter(it=>ids.indexOf(it.id)>=0); }
@@ -1572,7 +1577,7 @@ function renderRpgHome(){
         <button class="htab" data-ht="quizzes">🧠 Quizy</button>
         <button class="htab" data-ht="banks">🏰 Lochy</button>
         <button class="htab" data-ht="sekcje">🗺️ Prowincje</button>
-        <button class="htab active" data-ht="rpg">⚔️ RPG</button>
+        <button class="hbohater active" data-ht="rpg">⚔️ Bohater</button>
       </div>
       <h1 class="hello">⚔️ Wyprawy</h1>
       <div class="hellosub">Bohater rośnie w siłę, gdy odpowiadasz na pytania. Wybierz loch lub prowincję i rusz na słowiańskie bestie.</div>
@@ -1587,7 +1592,7 @@ function renderRpgHome(){
           <div class="herostats"><span>🗡️ ${st.atk}</span><span>🛡️ ${st.def}</span><span>🎯 ${st.crit}%</span><span>💎 ${h.diamonds||0}</span><span>☠️ ${h.defeated}</span></div>
         </div>
       </div>
-      ${h.relic?`<div class="sublabel">Relikwia (przetrwa śmierć)</div><div class="hlist"><div class="hcard${glowCls(h.relic)}" style="border:3px solid ${h.relic.col}"><div class="hbody"><h4>${h.relic.ic} ${esc(h.relic.nm)} <span class="rarlabel" style="color:${h.relic.col}">${h.relic.rar}</span></h4><div class="hmeta">${itemLabel(h.relic)}</div></div><button class="btn ghost" id="relicOff" style="font-size:12px;padding:6px 10px">✕ Zdejmij</button></div></div>`:""}
+      ${h.relic?`<div class="sublabel">Relikwia (przetrwa śmierć)</div><div class="hlist"><div class="hcard">${itemSq(h.relic)}<div class="hbody"><h4>${esc(h.relic.nm)} <span class="rarlabel" style="color:${h.relic.col}">${h.relic.rar}</span></h4><div class="hmeta">${itemLabel(h.relic)}</div></div><button class="btn ghost" id="relicOff" style="font-size:12px;padding:6px 10px">✕ Zdejmij</button></div></div>`:""}
       <div class="row" style="margin:14px 0 6px"><button class="btn ghost" id="rpgTree">🌳 Drzewo rozwoju</button><button class="btn ghost" id="rpgCamp">💎 Obóz</button>${(h.defeated||h.level>1)?`<button class="btn ghost" id="rpgReset" style="color:var(--bad)">↺ Nowa postać</button>`:""}</div>
       <div class="sublabel">Wybierz wyprawę</div>
       <div class="hlist">
@@ -1645,12 +1650,12 @@ function renderInventory(){
   const cap=30; const backpack=(h.items||[]).filter(it=>!isEquipped(h,it.id));
   content.innerHTML=`
     <button class="backbtn" id="invBack">‹ Wstecz</button>
-    <div class="home"><h1 class="hello" style="font-size:26px">🎒 Ekwipunek</h1>
-    <div class="hellosub">🪙 ${h.coins} groszy · założone bonusy liczą się do statystyk. Plecak: ${backpack.length}/${cap}.</div>
+    <div class="home"><h1 class="hello" style="font-size:26px"><svg viewBox="0 0 20 20" width="15" height="15" style="vertical-align:-3px"><rect x="4" y="7" width="12" height="10" rx="3" fill="#6f7d5e"/><path d="M7 7.5a3 3 0 0 1 6 0" fill="none" stroke="#4f5e3d" stroke-width="1.5"/><rect x="8" y="10.5" width="4" height="4" rx="1" fill="#eef2ea"/></svg> Ekwipunek</h1>
+    <div class="hellosub"><svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${h.coins} groszy · założone bonusy liczą się do statystyk. Plecak: ${backpack.length}/${cap}.</div>
     <div class="sublabel">Założone</div>
     <div class="slots">${slotHtml("⚔️ Broń",e.weapon)}${slotHtml("🛡️ Pancerz",e.armor)}${slotHtml("💍 Akcesorium I",e.acc1)}${slotHtml("🪬 Akcesorium II",e.acc2)}${slotHtml("✨ Relikwia",e.relic)}</div><div class="muted small" style="margin:-2px 0 6px">Przedmiot w slocie ✨ Relikwia przetrwa śmierć i wróci w kolejnej wyprawie.</div>
     <div class="sublabel">Plecak</div>
-    <div class="hlist">${backpack.length?backpack.map(it=>`<div class="hcard${glowCls(it)}" style="border:4px solid ${it.col}"><div class="hbody"><h4>${it.ic} ${esc(it.nm)} <span class="rarlabel" style="color:${it.col}">${it.rar}</span></h4><div class="hmeta">${itemLabel(it)} · 🪙 ${it.sell}</div></div><div style="display:flex;flex-direction:column;gap:5px"><button class="btn ghost" data-eq="${it.id}" style="font-size:12px;padding:5px 10px">Załóż</button><button class="btn ghost" data-relic="${it.id}" style="font-size:12px;padding:5px 10px">✨ Relikwia</button><button class="btn ghost" data-sell="${it.id}" style="color:var(--bad);font-size:12px;padding:5px 10px">Sprzedaj</button></div></div>`).join(""):`<div class="hempty">Plecak pusty. Zdobywaj łupy w wyprawach.</div>`}</div>
+    <div class="hlist">${backpack.length?backpack.map(it=>`<div class="hcard">${itemSq(it)}<div class="hbody"><h4>${esc(it.nm)} <span class="rarlabel" style="color:${it.col}">${it.rar}</span></h4><div class="hmeta">${itemLabel(it)} · <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${it.sell}</div></div><div style="display:flex;flex-direction:column;gap:5px"><button class="btn ghost" data-eq="${it.id}" style="font-size:12px;padding:5px 10px">Załóż</button><button class="btn ghost" data-relic="${it.id}" style="font-size:12px;padding:5px 10px">✨ Relikwia</button><button class="btn ghost" data-sell="${it.id}" style="color:var(--bad);font-size:12px;padding:5px 10px">Sprzedaj</button></div></div>`).join(""):`<div class="hempty">Plecak pusty. Zdobywaj łupy w wyprawach.</div>`}</div>
     <div class="haddwrap"></div></div>`;
   document.getElementById("invBack").onclick=()=>{ if(state.rpg) renderBattle(); else renderRpgHome(); };
   content.querySelectorAll("[data-eq]").forEach(b=>b.onclick=()=>{ equipItem(h,b.getAttribute("data-eq")); saveHero(); renderInventory(); });
@@ -1671,8 +1676,8 @@ function enterCamp(){ const h=state.hero; h.campAtAns=(h.answered||0)+CAMP_EVERY
 function renderShop(){
   const h=state.hero; const tier=shopTier(h.level); if(!state.shopStock) rollShopStock(); const camp=!!state.campShop;
   const st=heroStats(h); const missing=st.maxHp-h.hp; const healCost=Math.max(0,Math.round(missing*0.6)); const halfHp=Math.min(missing,Math.round(st.maxHp*0.5)); const halfCost=Math.max(0,Math.round(halfHp*0.6)); const hpPct=Math.round(100*h.hp/st.maxHp);
-  const consHtml=SHOP.map(it=>`<div class="hcard"><div class="hbody"><h4>${it.ic} ${esc(it.name)} <span style="font-size:11px;opacity:.7">(masz ${h.cons[it.key]||0})</span></h4><div class="hmeta">${esc(it.desc)} · 🪙 ${it.cost}</div></div><button class="btn ghost" data-buy="${it.key}" style="font-size:12px;padding:6px 12px" ${h.coins<it.cost?"disabled":""}>Kup</button></div>`).join("");
-  const goodsHtml=state.shopStock.map((it,ix)=>`<div class="hcard${glowCls(it)}" style="border:4px solid ${it.col}"><div class="hbody"><h4>${it.ic} ${esc(it.nm)} <span class="rarlabel" style="color:${it.col}">${it.rar}</span></h4><div class="hmeta">${itemLabel(it)}</div></div><button class="btn ghost" data-buygood="${ix}" style="font-size:12px;padding:6px 12px" ${h.coins<itemPrice(it)?"disabled":""}>🪙 ${itemPrice(it)}</button></div>`).join("");
+  const consHtml=SHOP.map(it=>`<div class="hcard"><div class="hbody"><h4>${it.ic} ${esc(it.name)} <span style="font-size:11px;opacity:.7">(masz ${h.cons[it.key]||0})</span></h4><div class="hmeta">${esc(it.desc)} · <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${it.cost}</div></div><button class="btn ghost" data-buy="${it.key}" style="font-size:12px;padding:6px 12px" ${h.coins<it.cost?"disabled":""}>Kup</button></div>`).join("");
+  const goodsHtml=state.shopStock.map((it,ix)=>`<div class="hcard">${itemSq(it)}<div class="hbody"><h4>${esc(it.nm)} <span class="rarlabel" style="color:${it.col}">${it.rar}</span></h4><div class="hmeta">${itemLabel(it)}</div></div><button class="btn ghost" data-buygood="${ix}" style="font-size:12px;padding:6px 12px" ${h.coins<itemPrice(it)?"disabled":""}><svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${itemPrice(it)}</button></div>`).join("");
   // kowal: grupy po rzadkości
   const byRar={}; (h.items||[]).filter(it=>!isEquipped(h,it.id)).forEach(it=>{ (byRar[it.rar]=byRar[it.rar]||[]).push(it); });
   const mergeable=Object.keys(byRar).filter(r=>byRar[r].length>=3 && r!=="unikat");
@@ -1681,21 +1686,21 @@ function renderShop(){
     <button class="backbtn" id="shopBack">${camp?"⚔️ Rusz w dalszą drogę":"‹ Wstecz"}</button>
     ${camp?`<div class="campscene" style="background-image:url('${BG_FOREST}')"><div class="campscene-t pix">🔥 Ognisko</div></div>`:""}
     <div class="home" style="padding-top:0"><h1 class="hello" style="font-size:22px">${camp?"🔥 "+esc(tier.t):"🛒 "+esc(tier.t)}</h1>
-    <div class="hellosub">${camp?(()=>{ const r=state.rpg, tot=r?r.pool.length:0, mas=r?r.pool.filter(qq=>(qq.streak||0)>=1).length:0, pct=tot?Math.round(100*mas/tot):0; return `Bezpieczny przystanek. ❤️ ${Math.max(0,h.hp)}/${st.maxHp} HP (${hpPct}%) · opanowano ${mas}/${tot} pytań (${pct}%). Lecz się, dokup oręż u kupca i przekuwaj łup u kowala — potem ruszaj dalej.`; })():esc(tier.d)} · 🪙 ${h.coins} groszy</div>${camp?'<div class="muted small" style="margin:-4px 0 8px;text-align:center">Sklep jest dostępny tylko tutaj — w walce musisz przetrwać o własnych siłach.</div>':""}
+    <div class="hellosub">${camp?(()=>{ const r=state.rpg, tot=r?r.pool.length:0, mas=r?r.pool.filter(qq=>(qq.streak||0)>=1).length:0, pct=tot?Math.round(100*mas/tot):0; return `Bezpieczny przystanek. ❤️ ${Math.max(0,h.hp)}/${st.maxHp} HP (${hpPct}%) · opanowano ${mas}/${tot} pytań (${pct}%). Lecz się, dokup oręż u kupca i przekuwaj łup u kowala — potem ruszaj dalej.`; })():esc(tier.d)} · <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${h.coins} groszy</div>${camp?'<div class="muted small" style="margin:-4px 0 8px;text-align:center">Sklep jest dostępny tylko tutaj — w walce musisz przetrwać o własnych siłach.</div>':""}
     <div class="sublabel">Cyrulik — odpoczynek</div>
     <div class="hlist">
-    <div class="hcard"><div class="hbody"><h4>💛 Opatrunek (+50% HP)</h4><div class="hmeta">${missing>0?`Przywraca ${halfHp} HP · koszt 🪙 ${halfCost}`:"Jesteś w pełni zdrowy"}</div></div><button class="btn ghost" id="healHalf" style="font-size:12px;padding:6px 12px" ${(missing<=0||h.coins<halfCost)?"disabled":""}>Opatrz</button></div>
-    <div class="hcard"><div class="hbody"><h4>❤️ Pełne uzdrowienie</h4><div class="hmeta">${missing>0?`Brakuje ${missing} HP · koszt 🪙 ${healCost}`:"Jesteś w pełni zdrowy"}</div></div><button class="btn ghost" id="healBtn" style="font-size:12px;padding:6px 12px" ${(missing<=0||h.coins<healCost)?"disabled":""}>Ulecz</button></div></div>
+    <div class="hcard"><div class="hbody"><h4>💛 Opatrunek (+50% HP)</h4><div class="hmeta">${missing>0?`Przywraca ${halfHp} HP · koszt <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${halfCost}`:"Jesteś w pełni zdrowy"}</div></div><button class="btn ghost" id="healHalf" style="font-size:12px;padding:6px 12px" ${(missing<=0||h.coins<halfCost)?"disabled":""}>Opatrz</button></div>
+    <div class="hcard"><div class="hbody"><h4>❤️ Pełne uzdrowienie</h4><div class="hmeta">${missing>0?`Brakuje ${missing} HP · koszt <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${healCost}`:"Jesteś w pełni zdrowy"}</div></div><button class="btn ghost" id="healBtn" style="font-size:12px;padding:6px 12px" ${(missing<=0||h.coins<healCost)?"disabled":""}>Ulecz</button></div></div>
     <div class="sublabel">Eliksiry i koła ratunkowe</div>
     <div class="hlist">${consHtml}</div>
-    <div class="sublabel">Towary kupca <button class="btn ghost" id="restock" style="font-size:11px;padding:4px 9px;margin-left:6px">↻ Odśwież (🪙 15)</button></div>
+    <div class="sublabel">Towary kupca <button class="btn ghost" id="restock" style="font-size:11px;padding:4px 9px;margin-left:6px">↻ Odśwież (<svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> 15)</button></div>
     <div class="hlist">${goodsHtml}</div>
     <div class="sublabel">Tajemnicza skrzynia</div>
-    <div class="hlist"><div class="hcard"><div class="hbody"><h4>🎁 Kot w worku</h4><div class="hmeta">Losowy przedmiot — od śmiecia po unikat · 🪙 120</div></div><button class="btn ghost" id="gacha" style="font-size:12px;padding:6px 12px" ${h.coins<120?"disabled":""}>Otwórz</button></div></div>
+    <div class="hlist"><div class="hcard"><div class="hbody"><h4>🎁 Kot w worku</h4><div class="hmeta">Losowy przedmiot — od śmiecia po unikat · <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> 120</div></div><button class="btn ghost" id="gacha" style="font-size:12px;padding:6px 12px" ${h.coins<120?"disabled":""}>Otwórz</button></div></div>
     <div class="sublabel">Kowal — przetapianie</div>
-    <div class="hlist">${mergeable.length?mergeable.map(r=>{ const col=(RARITY.find(x=>x.key===r)||{}).col; return `<div class="hcard"><div class="hbody"><h4 style="color:${col}">Przetop 3× <span class="rarlabel" style="color:${col}">${r}</span></h4><div class="hmeta">Z 3 przedmiotów tej rzadkości wykuj 1 wyższej · 🪙 20</div></div><button class="btn ghost" data-merge="${r}" style="font-size:12px;padding:6px 12px" ${h.coins<20?"disabled":""}>Przetop</button></div>`; }).join(""):`<div class="hempty">Zbierz 3 przedmioty tej samej rzadkości (w plecaku), by je przetopić w lepszy.</div>`}</div>
+    <div class="hlist">${mergeable.length?mergeable.map(r=>{ const col=(RARITY.find(x=>x.key===r)||{}).col; return `<div class="hcard"><div class="hbody"><h4 style="color:${col}">Przetop 3× <span class="rarlabel" style="color:${col}">${r}</span></h4><div class="hmeta">Z 3 przedmiotów tej rzadkości wykuj 1 wyższej · <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> 20</div></div><button class="btn ghost" data-merge="${r}" style="font-size:12px;padding:6px 12px" ${h.coins<20?"disabled":""}>Przetop</button></div>`; }).join(""):`<div class="hempty">Zbierz 3 przedmioty tej samej rzadkości (w plecaku), by je przetopić w lepszy.</div>`}</div>
     <div class="sublabel">Kuźnia — ofiara z relikwii (za 💎)</div>
-    <div class="hlist">${scrapable.length?scrapable.map(it=>`<div class="hcard${glowCls(it)}" style="border:4px solid ${it.col}"><div class="hbody"><h4>${it.ic} ${esc(it.nm)} <span class="rarlabel" style="color:${it.col}">${it.rar}</span></h4><div class="hmeta">Zniszcz na zawsze za 💎 ${scrapDia(it)} ${plural(scrapDia(it),"Diament","Diamenty","Diamentów")} Wiedzy</div></div><button class="btn ghost" data-scrap="${it.id}" style="font-size:12px;padding:6px 12px">💎 Złom</button></div>`).join(""):`<div class="hempty">Brak przedmiotów epickich lub lepszych do złomowania (liczą się te w plecaku).</div>`}</div>
+    <div class="hlist">${scrapable.length?scrapable.map(it=>`<div class="hcard">${itemSq(it)}<div class="hbody"><h4>${esc(it.nm)} <span class="rarlabel" style="color:${it.col}">${it.rar}</span></h4><div class="hmeta">Zniszcz na zawsze za 💎 ${scrapDia(it)} ${plural(scrapDia(it),"Diament","Diamenty","Diamentów")} Wiedzy</div></div><button class="btn ghost" data-scrap="${it.id}" style="font-size:12px;padding:6px 12px">💎 Złom</button></div>`).join(""):`<div class="hempty">Brak przedmiotów epickich lub lepszych do złomowania (liczą się te w plecaku).</div>`}</div>
     <div class="haddwrap"></div></div>`;
   document.getElementById("shopBack").onclick=()=>{ if(camp){ state.campShop=false; renderBattle(); } else if(state.rpg){ renderBattle(); } else { renderRpgHome(); } };
   content.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>{ const it=SHOP.find(x=>x.key===b.getAttribute("data-buy")); if(h.coins<it.cost) return; h.coins-=it.cost; h.cons[it.key]=(h.cons[it.key]||0)+1; saveHero(); renderShop(); });
@@ -1752,7 +1757,7 @@ function renderBattle(){
       <div class="bx-q">${esc(q.q)}</div>
       <div class="bgrid">${q.options.map((o,oi)=>{ let cls="opt"; if(r.revealed){ if(oi===q.correct) cls+=" correct"; else if(oi===r.picked) cls+=" wrong"; } return `<div class="${cls}" data-oi="${oi}"><span class="ot"><b>${"ABCD"[oi]}.</b> ${esc(o)}</span><span class="mk">${r.revealed&&oi===q.correct?"✓":r.revealed&&oi===r.picked?"✗":""}</span></div>`; }).join("")}</div>
       ${r.revealed&&q.explanation?`<div class="bx-exp">💡 ${esc(q.explanation)}</div>`:""}
-      <div class="bx-foot"><div class="bx-cons">${["potion","fury","ward"].map(k=>{ const it=SHOP.find(x=>x.key===k); const cnt=h.cons[k]||0; return `<button class="consbtn" data-use="${k}" ${cnt&&!r.revealed?"":"disabled"} title="${esc(it.desc)}">${it.ic} ${cnt}</button>`; }).join("")}<button class="consbtn" id="bInv" title="Ekwipunek">🎒</button></div><div class="bx-gold pix">🪙 ${h.coins}</div></div>
+      <div class="bx-foot"><div class="bx-cons">${["potion","fury","ward"].map(k=>{ const it=SHOP.find(x=>x.key===k); const cnt=h.cons[k]||0; return `<button class="consbtn" data-use="${k}" ${cnt&&!r.revealed?"":"disabled"} title="${esc(it.desc)}">${it.ic} ${cnt}</button>`; }).join("")}<button class="consbtn" id="bInv" title="Ekwipunek"><svg viewBox="0 0 20 20" width="15" height="15" style="vertical-align:-3px"><rect x="4" y="7" width="12" height="10" rx="3" fill="#6f7d5e"/><path d="M7 7.5a3 3 0 0 1 6 0" fill="none" stroke="#4f5e3d" stroke-width="1.5"/><rect x="8" y="10.5" width="4" height="4" rx="1" fill="#eef2ea"/></svg></button></div><div class="bx-gold pix"><svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${h.coins}</div></div>
       ${r.revealed?`<div class="row" style="justify-content:center"><button class="btn" id="bNext">${en.hp<=0?"🏆 Zwycięstwo →":(h.hp<=0?"💀 Dalej":"▶ Dalej")}</button></div>`:`<div class="muted small" style="text-align:center">Trafna odpowiedź rani potwora, błędna rani Ciebie.</div>`}
     </div>`;
   document.getElementById("bExit").onclick=()=>{ if(confirm("Porzucić wyprawę? Stracisz zebrany łup i złoto (Relikwia, XP i Diamenty zostają).")){ endRun(); openRpg(); } };
@@ -1813,8 +1818,8 @@ function renderBossReward(it,coin,dia){
     <div class="qsetup">
       <div class="qbadge big">🏆</div>
       <h2 class="qtitle">Boss pokonany!</h2>
-      <p class="qsub">Zdobyłeś 🪙 ${coin} groszy${dia?` i 💎 ${dia} Diamenty Wiedzy`:""}, plus gwarantowany łup.</p>
-      <div class="questgrid" style="grid-template-columns:1fr;max-width:300px"><div class="questcard${glowCls(it)}" style="border-color:${it.col};border-width:4px"><div class="questic">${it.ic}</div><div class="questnm" style="color:${it.col}">${esc(it.nm)}</div><div class="questrar" style="color:${it.col}">${it.rar}</div><div class="questds">${itemLabel(it)}</div></div></div>
+      <p class="qsub">Zdobyłeś <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${coin} groszy${dia?` i 💎 ${dia} Diamenty Wiedzy`:""}, plus gwarantowany łup.</p>
+      <div class="questgrid" style="grid-template-columns:1fr;max-width:300px"><div class="questcard" style="border-color:var(--border)"><div style="display:flex;justify-content:center;margin-bottom:8px">${itemSq(it,58)}</div><div class="questnm" style="color:${it.col}">${esc(it.nm)}</div><div class="questrar" style="color:${it.col}">${it.rar}</div><div class="questds">${itemLabel(it)}</div></div></div>
       <div class="row" style="justify-content:center"><button class="btn" id="bossNext">⚔️ Dalej</button></div>
     </div>`;
   document.getElementById("bossNext").onclick=()=>{ const h=state.hero,r=state.rpg; const nb=(h.enemyIdx%5===0); r.enemy=makeEnemy(h.enemyIdx,h.level,nb); r.revealed=false; r.picked=null; r.floatEn=null; r.floatHero=null; r.combo=0; enterCamp(); };
@@ -1825,8 +1830,8 @@ function renderQuest(leveled,coinGain){
     <div class="qsetup rpgquest">
       <div class="qbadge big">📜</div>
       <h2 class="qtitle">Łup z wyprawy!</h2>
-      <p class="qsub">Zdobyłeś 🪙 ${coinGain} groszy.${leveled?` <b>Awans na: ${esc(rankName(h))}!</b> (+💎 3 Diamenty Wiedzy)`:""} Wybierz jeden przedmiot:</p>
-      <div class="questgrid">${choices.map((it,i)=>`<button class="questcard${glowCls(it)}" data-qi="${i}" style="border-color:${it.col};border-width:4px"><div class="questic">${it.ic}</div><div class="questnm" style="color:${it.col}">${esc(it.nm)}</div><div class="questrar" style="color:${it.col}">${it.rar}</div><div class="questds">${itemLabel(it)}</div></button>`).join("")}</div>
+      <p class="qsub">Zdobyłeś <svg viewBox="0 0 16 16" width="13" height="13" style="vertical-align:-2px;margin-right:1px"><circle cx="8" cy="8" r="7" fill="#e8b84a" stroke="#b8861f" stroke-width="1.3"/><circle cx="8" cy="8" r="4.2" fill="none" stroke="#9c721a" stroke-width="1"/></svg> ${coinGain} groszy.${leveled?` <b>Awans na: ${esc(rankName(h))}!</b> (+💎 3 Diamenty Wiedzy)`:""} Wybierz jeden przedmiot:</p>
+      <div class="questgrid">${choices.map((it,i)=>`<button class="questcard" data-qi="${i}" style="border-color:var(--border)"><div style="display:flex;justify-content:center;margin-bottom:8px">${itemSq(it,58)}</div><div class="questnm" style="color:${it.col}">${esc(it.nm)}</div><div class="questrar" style="color:${it.col}">${it.rar}</div><div class="questds">${itemLabel(it)}</div></button>`).join("")}</div>
       <div class="muted small" style="margin-top:10px">Niewybrane przedmioty przepadają.</div>
     </div>`;
   content.querySelectorAll("[data-qi]").forEach(b=>b.onclick=()=>{
