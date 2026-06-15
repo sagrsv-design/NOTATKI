@@ -1,5 +1,8 @@
 <!doctype html>
 <meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -663,7 +666,7 @@ textarea,.titlefield,.modelsel{background:#fff;color:var(--ink);border:1px solid
     <div class="lib-label">Biblioteka</div>
     <div class="libtabs" id="libTabsSide"></div>
     <div class="lib" id="lib"></div>
-    <div class="side-foot">Wersja prywatna. Notatki zapisują się w tej przeglądarce — używaj <b>Eksportu/Importu</b>, aby przenosić je między urządzeniami (np. PC → telefon). Generowanie przez API Anthropic — klucz i model ustawisz w <b>⚙ Ustawienia AI</b>.</div>
+    <div class="side-foot">Wersja 2026-06-15 16:27 · Notatki zapisują się w tej przeglądarce — używaj <b>Eksportu/Importu</b>, aby przenosić je między urządzeniami (np. PC → telefon). Generowanie przez API Anthropic — klucz i model ustawisz w <b>⚙ Ustawienia AI</b>.</div>
   </aside>
   <main class="main">
     <div class="topbar">
@@ -972,6 +975,7 @@ const GMODELS=[
 ];
 const CFG_KEY="notatkiai.cfg";
 /* Zestawy do wczytania kodem. Klucz = KOD (wielkie litery), wartość = {type:"notatkiai-backup",notes:[...]} */
+const APP_VER="2026-06-15 16:27";
 const REDEEM_CODES={};
 const REDEEM_FILES={"NEUROPSYCHO":"neuropsycho.json"};
 async function redeemSet(code, st){
@@ -1807,28 +1811,26 @@ function renderMuseum(){
   const h=state.hero; h.museum=h.museum||[]; const mus=h.museum;
   const ri=(r)=>RARITY.findIndex(x=>x.key===r);
   const types=[["weapon","⚔️ Bronie"],["armor","🛡️ Zbroje"],["talisman","🪬 Amulety"]];
-  let body="", shown=0, cap=0;
-  for(const [tk,tlabel] of types){
-    const arr=mus.filter(m=>(m.type||"weapon")===tk).sort((a,b)=>ri(b.rar)-ri(a.rar));
-    const N=Math.max(36, Math.ceil((arr.length+1)/12)*12);
-    shown+=arr.length; cap+=N;
-    let cells="";
-    for(let k=0;k<N;k++){
-      if(k<arr.length){ const it=arr[k]; cells+=`<div class="muzcell full" title="${esc(it.nm)} · ${esc(it.rar)}">${it.ic}<span class="mrar" style="background:${it.col}"></span></div>`; }
-      else cells+=`<div class="muzcell lock">🔒</div>`;
-    }
-    body+=`<div class="sublabel">${tlabel} · ${arr.length}/${N}</div><div class="muzgrid">${cells}</div>`;
-  }
+  const cur=state.muzTab||"weapon";
+  const tabBtns=types.map(([tk,tl])=>`<button class="htab${cur===tk?' active':''}" data-muz="${tk}">${tl}</button>`).join("");
+  const tl=(types.find(t=>t[0]===cur)||types[0])[1];
+  const arr=mus.filter(m=>(m.type||"weapon")===cur).sort((a,b)=>ri(b.rar)-ri(a.rar));
+  const N=Math.max(36, Math.ceil((arr.length+1)/12)*12);
+  let cells="";
+  for(let k=0;k<N;k++){ if(k<arr.length){ const it=arr[k]; cells+=`<div class="muzcell full" title="${esc(it.nm)} · ${esc(it.rar)}">${it.ic}<span class="mrar" style="background:${it.col}"></span></div>`; } else cells+=`<div class="muzcell lock">🔒</div>`; }
   content.innerHTML=`
     <button class="backbtn" id="muzBack">‹ Wstecz</button>
     <div class="home" style="padding-top:0">
       <h1 class="hello" style="font-size:22px">🏛️ Muzeum</h1>
-      <div class="hellosub">Gablota Kolekcjonera · odsłonięto <b>${shown}/${cap}</b> kłódek. Przyjmujemy tylko przedmioty <b>epickie i lepsze</b> (📦 oddajesz je z ekwipunku przyciskiem 🏛️ — zostają tu na zawsze).</div>
-      ${shown?"":`<div class="hempty" style="margin-top:8px">Gablota pusta. Zdobądź epicki+ przedmiot i oddaj go w ekwipunku przyciskiem 🏛️.</div>`}
-      ${body}
+      <div class="hellosub">Gablota Kolekcjonera · tylko przedmioty <b>epickie i lepsze</b>. Oddajesz je z ekwipunku przyciskiem 🏛️.</div>
+      <div class="htabs" style="margin:12px 0 4px">${tabBtns}</div>
+      <div class="sublabel">${tl} · ${arr.length}/${N}</div>
+      <div class="muzgrid">${cells}</div>
+      ${arr.length?"":`<div class="hempty" style="margin-top:6px">Brak przedmiotów w tej gablocie. Oddaj epicki+ przedmiot przyciskiem 🏛️.</div>`}
       <div class="haddwrap"></div>
     </div>`;
   document.getElementById("muzBack").onclick=()=>renderRpgHome();
+  content.querySelectorAll("[data-muz]").forEach(b=>b.onclick=()=>{ state.muzTab=b.getAttribute("data-muz"); renderMuseum(); });
 }
 function renderLegenda(){
   const eff={bleed:"krwawienie — co turę rani wroga",reflect:"odbicie — część obrażeń wraca do wroga",comboheal:"leczenie przy serii poprawnych",dodge:"szansa na unik ciosu",lifesteal:"kradzież życia — leczysz się trafiając",regen:"regeneracja HP co turę",goldfind:"więcej złota z walk",firststrike:"pierwszy cios w serii mocniejszy",execute:"egzekucja — bonus do wrogów na niskim HP",xpfind:"więcej XP i Diamentów"};
