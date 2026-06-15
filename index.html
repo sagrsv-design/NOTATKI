@@ -1619,6 +1619,34 @@ const AFFIXES=[
   {k:"thorny",ic:"🌵",name:"Kolczasty",desc:"Rani Cię, gdy go trafiasz"},
   {k:"enraged",ic:"😡",name:"Wściekły",desc:"Uderza mocniej"}
 ];
+function enemyEmoji(n){
+  const M=[
+   [/z\u0142odziei/,"\u{1F977}"],[/s\u0142u\u017c\u0105c/,"\u{1F9F9}"],[/go\u0142ych pi\u0119\u015bci|\bpi\u0119\u015bci/,"\u{1F44A}"],
+   [/wyj\u0119ty spod prawa|spod prawa/,"\u{1F5E1}\uFE0F"],[/doradca/,"\u{1F9D0}"],[/rywal|turniej/,"\u{1F40E}"],
+   [/kretoszczur|szczur/,"\u{1F400}"],[/nietoperz/,"\u{1F987}"],[/warg|wilk/,"\u{1F43A}"],[/\bdzik/,"\u{1F417}"],
+   [/\bpies|psi|psa|psich|str\u00f3\u017cuj/,"\u{1F415}"],[/kruk/,"\u{1F426}\u200D\u2B1B"],[/\bw\u0105\u017c/,"\u{1F40D}"],[/\bbyk/,"\u{1F402}"],
+   [/\blis/,"\u{1F98A}"],[/pe\u0142zacz/,"\u{1F41B}"],[/\u015bcierwojad|hiena/,"\u{1F985}"],[/kopacz|kopaln|kilof|oskard/,"\u26CF\uFE0F"],
+   [/saper|obl\u0119\u017cni|obl\u0119\u017cen/,"\u{1F4A3}"],[/bestia|monstr|potw\u00f3r/,"\u{1F409}"],[/k\u0142usown/,"\u{1F3F9}"],[/kusznik|kusz\b/,"\u{1F3F9}"],
+   [/\u0142owca|\u0142owczy/,"\u{1F3AF}"],[/tarczownik|tarcza/,"\u{1F6E1}\uFE0F"],[/szermierz|mistrz miecza|mieczem|miecza\b/,"\u{1F93A}"],
+   [/skrytob\u00f3j|asasyn|morderc|zab\u00f3jc|zab\u00f3jstw/,"\u{1F5E1}\uFE0F"],
+   [/z\u0142odziej|fa\u0142szerz|oszust|kradn/,"\u{1F977}"],
+   [/przemytnik|szmugler|szmugiel/,"\u{1F4E6}"],
+   [/bandy|opry|rzezimieszek|\bzbir|zabijaka|oprych|rabu\u015b|rabuj|\u0142upie\u017c|zb\u00f3j|\u0142otr/,"\u{1F5E1}\uFE0F"],
+   [/zwiadowca|goniec|szpieg|dywersant|wys\u0142annik|dyplomata|intrygant|prowokator/,"\u{1F575}\uFE0F"],
+   [/inkwizy|kap\u0142an|fanaty|sekcia|\bkult|zakon|brat-|mnich/,"\u{1F4FF}"],[/\bmag\b|czarnoks|czarodz|czarno/,"\u{1F52E}"],
+   [/konny|kawaler|rycerz/,"\u{1F40E}"],
+   [/kr\u00f3l|monarch|cesarz|ksi\u0105\u017c|baron|magnat|w\u0142adc|w\u0142adyk|uzurpator|namiestnik|szlachc|wasal/,"\u{1F451}"],
+   [/genera\u0142|dow\u00f3dca|kapitan|herszt|przyw\u00f3dca|\bw\u00f3dz|oficer|porucznik/,"\u{1F396}\uFE0F"],
+   [/berserk|osi\u0142ek|barbarzy\u0144|czempion|osi\u0142/,"\u{1F4AA}"],[/drwal/,"\u{1FA93}"],
+   [/ch\u0142op|wie\u015b|wiejski|buntownik|rebeli|powstani|rewoluc/,"\u{1F531}"],
+   [/dezerter|wi\u0119zie\u0144|zbieg|uciekinier|zbieg\u0142y/,"\u26D3\uFE0F"],
+   [/najemnik|piechur|zbrojny|\u017co\u0142nierz|piechoty|maruder|weteran|gwardzist/,"\u2694\uFE0F"],
+   [/\u017cebrak|w\u0142\u00f3cz\u0119ga|wyrzutek|zbieracz|wyg\u0142odnia\u0142|zdesperowan|n\u0119dz/,"\u{1F9CE}"],
+   [/pijany/,"\u{1F37A}"]
+  ];
+  for(const [re,e] of M){ if(re.test(n)) return e; }
+  return null;
+}
 function makeEnemy(idx,lvl,boss){
   const rk=ENEMY_RANKS[Math.min((lvl||1)-1,14)]; const nm=rk.l[idx%rk.l.length]; const loop=Math.floor(idx/rk.l.length);
   let hp=Math.round((30+idx*15+lvl*6)*(1+loop*0.6));
@@ -1629,7 +1657,7 @@ function makeEnemy(idx,lvl,boss){
   if(boss && Math.random()<0.85) affix=AFFIXES[Math.floor(Math.random()*AFFIXES.length)];
   else if(!boss && idx>=2 && Math.random()<0.30) affix=AFFIXES[Math.floor(Math.random()*AFFIXES.length)];
   if(affix && affix.k==="enraged") atk=Math.round(atk*1.35);
-  return {name:name,emoji:rk.e,img:((lvl||1)===1?ENEMY_IMG_T1[idx%ENEMY_IMG_T1.length]:null),maxHp:hp,hp:hp,atk:atk,boss:!!boss,affix:affix?affix.k:null,affixIc:affix?affix.ic:"",affixName:affix?affix.name:""};
+  return {name:name,emoji:enemyEmoji(nm)||rk.e,img:((lvl||1)===1?ENEMY_IMG_T1[idx%ENEMY_IMG_T1.length]:null),maxHp:hp,hp:hp,atk:atk,boss:!!boss,affix:affix?affix.k:null,affixIc:affix?affix.ic:"",affixName:affix?affix.name:""};
 }
 function rpgShuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function rpgPoolAll(){ const out=[]; state.notes.forEach(n=>{ if(n.bank&&n.bank.questions) n.bank.questions.forEach(q=>{ if(!q.skip&&q.options&&q.options.length===4) out.push(q); }); }); return out; }
