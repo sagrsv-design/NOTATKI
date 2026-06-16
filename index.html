@@ -692,8 +692,8 @@ textarea,.titlefield,.modelsel{background:#fff;color:var(--ink);border:1px solid
   </div>
 </div>
 
-<input type="file" id="fileInput" accept=".pptx,.pdf,.txt,.md" class="hidden">
-<input type="file" id="importInput" accept=".json,application/json" class="hidden">
+<input type="file" id="fileInput" accept=".pptx,.pdf,.txt,.md,*/*" style="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0">
+<input type="file" id="importInput" accept=".json,application/json,text/plain,*/*" style="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0">
 
 <div class="modal hidden" id="cfgModal">
   <div class="modal-card">
@@ -2648,8 +2648,13 @@ function importNoteFile(file){
   fr.onload=()=>{
     try{
       const d=JSON.parse(fr.result);
+      if(d && d.type==="notatkiai-backup" && Array.isArray(d.notes)){
+        let add=0,up=0; d.notes.forEach(n=>{ if(!n||!n.id||!n.note) return; const i=state.notes.findIndex(x=>x.id===n.id); if(i>=0){ state.notes[i]=n; up++; } else { state.notes.push(n); add++; } });
+        state.notes.sort((a,b)=>(b.created||0)-(a.created||0)); save(); syncSoon(); renderLib();
+        alert("Zaimportowano kopię: +"+add+" nowych, "+up+" zaktualizowanych."); return;
+      }
       const e=(d&&d.type==="notatkiai-note")?d.entry:null;
-      if(!e||!e.note) throw new Error("To nie jest plik notatki z tej aplikacji.");
+      if(!e||!e.note) throw new Error("To nie jest plik notatki ani kopii NotatkiAI.");
       e.id=uid(); e.created=e.created||Date.now(); e.updated=Date.now();
       state.notes.unshift(e); save(); syncSoon(); renderLib(); openNote(e.id);
     }catch(err){ alert("Import nieudany: "+err.message); }
@@ -2657,8 +2662,41 @@ function importNoteFile(file){
   fr.readAsText(file);
 }
 function printNote(){
-  document.querySelectorAll(".sec.collapsed").forEach(x=>x.classList.remove("collapsed"));
-  window.print();
+  try{
+    document.querySelectorAll(".sec.collapsed").forEach(x=>x.classList.remove("collapsed"));
+    const src=document.getElementById("content");
+    const note=((state.notes||[]).find(n=>n.id===state.currentId)||{}).note||{};
+    const title=esc(note.title||"Notatka");
+    let body="";
+    if(src){
+      const clone=src.cloneNode(true);
+      clone.querySelectorAll("button,input,textarea,select,.titledit,.notetools,.haddwrap,.backbtn,.chev,.lbctrl,.del,.row,.htabs,.libtabs,.banner").forEach(e=>e.remove());
+      body=clone.innerHTML;
+    }
+    const css="*{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;box-shadow:none!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}"
+      +"body{margin:0;padding:22px;background:#fff;color:#1c1d21;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,sans-serif;line-height:1.55;font-size:14px}"
+      +"h1{font-size:22px;margin:0 0 16px;color:#1c1d21}"
+      +".sec{background:#fff;border:1px solid #d8d8d3;border-radius:10px;padding:4px 0;margin:0 0 12px;break-inside:avoid}"
+      +".secbody{padding:2px 16px 14px 18px;display:block!important}"
+      +".gh,.ghhl,.sechead{font-weight:700;color:#26392f;padding:8px 16px}"
+      +".ghhl,.sublabel{border-bottom:2px solid #9bbfae;display:inline-block}"
+      +".intro{background:#f6f9f7;border-left:3px solid #c9d8cf;padding:10px 14px;margin:0 0 12px;border-radius:6px}"
+      +".ex{background:#f6f9f7;border-left:3px solid #9bbfae;padding:8px 12px;border-radius:6px;margin:6px 0}"
+      +".mainidea b{background:none;padding:0}"
+      +"img{max-width:100%;height:auto;break-inside:avoid}.fig{break-inside:avoid;margin:8px 0}"
+      +".sublabel{font-weight:700;color:#26392f;margin:10px 0 4px}"
+      +"ul,ol{margin:4px 0 4px 18px;padding:0}li{margin:3px 0}";
+    const ifr=document.createElement("iframe");
+    ifr.setAttribute("aria-hidden","true");
+    ifr.style.cssText="position:fixed;right:0;bottom:0;width:1px;height:1px;opacity:0;border:0";
+    document.body.appendChild(ifr);
+    const doc=ifr.contentWindow.document;
+    doc.open();
+    doc.write("<!doctype html><html><head><meta charset='utf-8'><title>"+title+"</title><style>"+css+"</style></head><body><h1>"+title+"</h1>"+body+"</body></html>");
+    doc.close();
+    const go=()=>{ try{ ifr.contentWindow.focus(); ifr.contentWindow.print(); }catch(e){ window.print(); } setTimeout(()=>{ try{ifr.remove();}catch(e){} },2000); };
+    if(doc.readyState==="complete") setTimeout(go,350); else ifr.onload=()=>setTimeout(go,350);
+  }catch(e){ try{ window.print(); }catch(_){} }
 }
 function delNote(id){ if(!confirm("Usunąć tę notatkę?")) return; markDeleted(id); state.notes=state.notes.filter(n=>n.id!==id); removeNotePersist(id); deleteRemote(id); if(loggedIn()) syncNow(true); if(state.currentId===id){ state.currentId=null; renderHome(); } else if(state.view==="home") renderHome(); else renderLib(); }
 
